@@ -181,7 +181,7 @@ async function getUserById(insertedId: string): Promise<IUser> {
   if (!user) {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -238,7 +238,7 @@ async function modifyUser(person: IUser): Promise<IUser> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -267,7 +267,7 @@ async function deleteUser(id: string): Promise<{deleted: Boolean}> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -301,7 +301,7 @@ async function addRegisteredEvents(id: string, eventId: string): Promise<IUser> 
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -335,7 +335,7 @@ async function removeRegisteredEvents(id: string, eventId: string): Promise<IUse
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }  
@@ -369,7 +369,7 @@ async function addHostedEvents(id: string, eventId: string): Promise<IUser> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -403,7 +403,7 @@ async function removeHostedEvents(id: string, eventId: string): Promise<IUser> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }  
@@ -437,7 +437,7 @@ async function addCohostedEvents(id: string, eventId: string): Promise<IUser> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -471,7 +471,7 @@ async function removeCohostedEvents(id: string, eventId: string): Promise<IUser>
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find user in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   } 

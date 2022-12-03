@@ -3,6 +3,7 @@ import joi from "joi";
 import { ObjectId } from "mongodb";
 import xss from "xss";
 import events from "../data/events";
+import users from "../data/users";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 
@@ -77,8 +78,11 @@ router.post("/new", async (req: express.Request, res: express.Response) => {
     await eventValidationSchema.validateAsync(newEvent);
 
     let createdEvent: IEvent | undefined = await events.createEvent(newEvent);
-    if (createdEvent) {
-      res.status(200).send(createdEvent);
+    if (createdEvent && createdEvent._id) {
+      let updatedUser = await users.addHostedEvents(createdEvent.hostId, createdEvent._id?.toString());
+      if (updatedUser) {
+        res.status(200).send(createdEvent);
+      }
     }
   } catch (e: any) {
     console.log("L87: ", e);
@@ -191,7 +195,15 @@ router.delete("/:eventId", async (req: express.Request, res: express.Response) =
     }
     let id: string = xss(req.params.eventId);
     let deletedEvent = await events.deleteEvent(id);
-    res.status(200).send(deletedEvent);
+    if(deletedEvent.deleted) {
+      let updatedUser = await users.removeHostedEvents('todo', id);
+      if(updatedUser) {
+        res.status(200).send(deletedEvent);
+
+      }
+    } else {
+      res.status(400).send({deleted: false});
+    }
   } catch (e: any) {
     res.status(e.status).send(e.message);
   }
@@ -240,12 +252,94 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
     switch (action) {
       case "add":
         updatedEventWithCohost = await events.addCohost(eventId, cohostId);
-        res.status(200).send(updatedEventWithCohost);
-
+        if (updatedEventWithCohost) {
+          let updateUser = await users.addCohostedEvents(cohostId, eventId);
+          if (updateUser) {
+            res.status(200).send({ addCohost: true });
+          }
+        }
         break;
       case "remove":
         updatedEventWithCohost = await events.removeCohost(eventId, cohostId);
-        res.status(200).send(updatedEventWithCohost);
+        if (updatedEventWithCohost) {
+          let updateUser = await users.removeCohostedEvents(cohostId, eventId);
+          if (updateUser) {
+            res.status(200).send({ removeCohost: true });
+          }
+        }
+        break;
+      default:
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, invalid action",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+        break;
+    }
+  } catch (e: any) {
+    res.status(e.status).send(e.message);
+  }
+});
+
+router.patch("/:eventId/registerEvent", async (req: express.Request, res: express.Response) => {
+  try {
+    let { attendeeId, action } = req.body;
+    let eventId = xss(req.params.eventId);
+
+    if (!attendeeId) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, please select attendeeId",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+
+    if (!ObjectId.isValid(attendeeId)) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, Invalid attendee ID",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+
+    if (!ObjectId.isValid(eventId)) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, Invalid event ID",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+
+    if (!action) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, please select your action",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+    attendeeId = xss(attendeeId);
+    action = xss(action);
+
+    let updatedEventWithCohost: IEvent;
+    switch (action) {
+      case "add":
+        updatedEventWithCohost = await events.addAttendee(eventId, attendeeId);
+        if (updatedEventWithCohost) {
+          let updateUser = await users.addRegisteredEvents(attendeeId, eventId);
+          if (updateUser) {
+            res.status(200).send({ addAttendee: true });
+          }
+        }
+        break;
+      case "remove":
+        updatedEventWithCohost = await events.removeAttendee(eventId, attendeeId);
+        if (updatedEventWithCohost) {
+          let updateUser = await users.removeRegisteredEvents(attendeeId, eventId);
+          if (updateUser) {
+            res.status(200).send({ removeAttendee: true });
+          }
+        }
+        break;
       default:
         let err: ErrorWithStatus = {
           message: "Bad Parameters, invalid action",

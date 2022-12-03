@@ -140,7 +140,7 @@ async function getEventById(eventId: string): Promise<IEvent> {
   if (!event) {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -212,13 +212,13 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
 }
 
-async function deleteEvent(eventId: string): Promise<Object> {
+async function deleteEvent(eventId: string): Promise<{deleted: Boolean}> {
   validityCheck(undefined, eventId);
 
   let queryId: ObjectId = new ObjectId(eventId);
@@ -238,7 +238,7 @@ async function deleteEvent(eventId: string): Promise<Object> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -323,7 +323,7 @@ async function addCohost(eventId: string, cohostId: string): Promise<IEvent> {
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -358,7 +358,7 @@ async function removeCohost(eventId: string, cohostId: string): Promise<IEvent> 
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -403,7 +403,7 @@ async function addAttendee(eventId: string, attendeeId: string): Promise<IEvent>
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }
@@ -437,7 +437,7 @@ async function removeAttendee(eventId: string, attendeeId: string): Promise<IEve
   } else {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
-      status: 400,
+      status: 404,
     };
     throw err;
   }

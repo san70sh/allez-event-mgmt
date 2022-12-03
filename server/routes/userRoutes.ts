@@ -55,100 +55,6 @@ const userValidationSchema = joi.object({
 router.post("/signup", async (req: express.Request, res: express.Response) => {
   try {
     let { user, password } = req.body;
-    // if (
-    //   typeof user.name != "string" ||
-    //   typeof user.gender != "string" ||
-    //   typeof user.email.toLowerCase() != "string" ||
-    //   typeof user.address.postal_code != "string" ||
-    //   typeof user.address.city != "string" ||
-    //   typeof user.address.state != "string" ||
-    //   typeof user.address.country != "string" ||
-    //   typeof password != "string" ||
-    //   typeof user.dateOfBirth != "string"
-    // ) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Registration Details Not In String Format",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // if (
-    //   !user.name.trim() ||
-    //   !user.gender.trim() ||
-    //   !user.email.trim().toLowerCase() ||
-    //   !user.address.city.trim() ||
-    //   !user.address.state.trim() ||
-    //   !user.address.postal_code ||
-    //   !user.address.country.trim() ||
-    //   !user.dateOfBirth.trim() ||
-    //   !password.trim()
-    // ) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Registration Details Might Be Empty Strings",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // if (isNaN(Number(user.phone))) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Phone Number Is Not Number",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // if (isNaN(Number(user.address.postal_code))) {
-    //   let err: ErrorWithStatus = {
-    //     message: "ZIP Is Not Number",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // if (
-    //   !isNaN(Number(user.name.trim())) ||
-    //   !isNaN(Number(user.address.city.trim())) ||
-    //   !isNaN(Number(user.address.state.trim())) ||
-    //   !isNaN(Number(user.address.country.trim())) ||
-    //   !isNaN(Number(user.gender.trim())) ||
-    //   !isNaN(Number(user.email.trim().toLowerCase()))
-    // ) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Name, Address, gender and email must contain alphabets",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // let dob: string[] = user.dateOfBirth.split("-");
-    // if (dob.length != 3) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Invalid Date",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
-
-    // dob.forEach((e: string) => {
-    //   if(isNaN(Number(e))) {
-    //     let err: ErrorWithStatus = {
-    //       message: "Invalid Date",
-    //       status: 400,
-    //     };
-    //     res.status(err.status).send(err.message);
-    //   }
-    // });
-
-    // let currentDate: Date = new Date();
-    // if(Math.abs(parseInt(dob[0]) - currentDate.getFullYear()) > 100 || parseInt(dob[1]) < 1 || parseInt(dob[1]) > 12 || parseInt(dob[2]) > 31 || parseInt(dob[2]) < 1) {
-    //   let err: ErrorWithStatus = {
-    //     message: "Invalid Date",
-    //     status: 400,
-    //   };
-    //   res.status(err.status).send(err.message);
-    // }
     await userValidationSchema.validateAsync(user);
 
     if (!password || password.trim().length == 0) {
@@ -267,6 +173,57 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
+router.get("/:userId/hostedEvents", async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.userId.toString())) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, Invalid user ID",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+    let id: string = xss(req.params.userId);
+    let getUserHostedEvents = await users.getHostedEvents(id);
+    res.status(200).send(getUserHostedEvents);
+  } catch (e: any) {
+    res.status(e.status).send(e.message);
+  }
+});
+
+router.get("/:userId/cohostedEvents", async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.userId.toString())) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, Invalid user ID",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+    let id: string = xss(req.params.userId);
+    let getUserCohostedEvents = await users.getCohostedEvents(id);
+    res.status(200).send(getUserCohostedEvents);
+  } catch (e: any) {
+    res.status(e.status).send(e.message);
+  }
+});
+
+router.get("/:userId/registeredEvents", async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.userId.toString())) {
+      let err: ErrorWithStatus = {
+        message: "Bad Parameters, Invalid user ID",
+        status: 400,
+      };
+      res.status(err.status).send(err.message);
+    }
+    let id: string = xss(req.params.userId);
+    let getUserRegisteredEvents = await users.getRegisteredEvents(id);
+    res.status(200).send(getUserRegisteredEvents);
+  } catch (e: any) {
+    res.status(e.status).send(e.message);
+  }
+});
+
 router.delete("/:userId", async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.userId.toString())) {
@@ -283,7 +240,5 @@ router.delete("/:userId", async (req, res) => {
     res.status(e.status).send(e.message);
   }
 });
-
-
 
 export default router;
