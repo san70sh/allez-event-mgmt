@@ -3,3 +3,8 @@ export class ErrorWithStatus {
     message: string;
 }
 
+declare module "express-session" {
+    interface SessionData {
+        userId: string | undefined
+    }
+}

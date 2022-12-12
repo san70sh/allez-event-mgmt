@@ -52,6 +52,23 @@ const userValidationSchema = joi.object({
   attendEventArray: joi.optional(),
 });
 
+router.get("/logout", async (req, res) => {
+  try {
+    req.session.destroy((err) => {
+      if (err) {
+        let e: ErrorWithStatus = {
+          message: `Logout Failed`,
+          status: 500,
+        };
+        res.status(e.status).send(`${e.message}: ${err}`);
+      }
+    });
+    return res.status(200).send({ logout: true });
+  } catch (e) {
+    return res.status(500).send({ logout: false, result: e });
+  }
+});
+
 router.post("/signup", async (req: express.Request, res: express.Response) => {
   try {
     let { user, password } = req.body;
@@ -84,6 +101,7 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
 
     let createdUser: IUser | undefined = await users.createUser(newUser);
     if (createdUser) {
+      req.session.userId = createdUser._id?.toString();
       res.status(200).send(createdUser);
     }
   } catch (e: any) {
@@ -101,8 +119,11 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
 
 router.put("/", async (req: express.Request, res: express.Response) => {
   try {
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    }
+
     let user = req.body;
-    console.log(user);
     await userValidationSchema.validateAsync(user);
 
     let modifiedUser: IUser = {
@@ -127,7 +148,6 @@ router.put("/", async (req: express.Request, res: express.Response) => {
       res.status(200).send(updatedUser);
     }
   } catch (e: any) {
-    console.log("L216: ", e);
     if (e.isJoi) {
       let err: ErrorWithStatus = {
         message: `${e.details[0].message}`,
@@ -156,7 +176,7 @@ router.put("/", async (req: express.Request, res: express.Response) => {
 //   }
 // })
 
-router.get("/:userId", async (req, res) => {
+router.route("/:userId").get( async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.userId.toString())) {
       let err: ErrorWithStatus = {
@@ -173,69 +193,92 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
-router.get("/:userId/hostedEvents", async (req, res) => {
+router.get("/hostedEvents", async (req, res) => {
   try {
-    if (!ObjectId.isValid(req.params.userId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid user ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      if (!ObjectId.isValid(req.session.userId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid user ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      let id: string = xss(req.session.userId);
+      let getUserHostedEvents = await users.getHostedEvents(id);
+      res.status(200).send(getUserHostedEvents);
     }
-    let id: string = xss(req.params.userId);
-    let getUserHostedEvents = await users.getHostedEvents(id);
-    res.status(200).send(getUserHostedEvents);
   } catch (e: any) {
     res.status(e.status).send(e.message);
   }
 });
 
-router.get("/:userId/cohostedEvents", async (req, res) => {
+router.get("/cohostedEvents", async (req, res) => {
   try {
-    if (!ObjectId.isValid(req.params.userId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid user ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      if (!ObjectId.isValid(req.session.userId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid user ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      let id: string = xss(req.session.userId);
+      let getUserCohostedEvents = await users.getCohostedEvents(id);
+      res.status(200).send(getUserCohostedEvents);
     }
-    let id: string = xss(req.params.userId);
-    let getUserCohostedEvents = await users.getCohostedEvents(id);
-    res.status(200).send(getUserCohostedEvents);
   } catch (e: any) {
     res.status(e.status).send(e.message);
   }
 });
 
-router.get("/:userId/registeredEvents", async (req, res) => {
+router.get("/registeredEvents", async (req, res) => {
   try {
-    if (!ObjectId.isValid(req.params.userId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid user ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      if (!ObjectId.isValid(req.session.userId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid user ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      let id: string = xss(req.session.userId);
+      let getUserRegisteredEvents = await users.getRegisteredEvents(id);
+      res.status(200).send(getUserRegisteredEvents);
     }
-    let id: string = xss(req.params.userId);
-    let getUserRegisteredEvents = await users.getRegisteredEvents(id);
-    res.status(200).send(getUserRegisteredEvents);
   } catch (e: any) {
     res.status(e.status).send(e.message);
   }
 });
 
-router.delete("/:userId", async (req, res) => {
+router.delete("/", async (req, res) => {
   try {
-    if (!ObjectId.isValid(req.params.userId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid user ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      if (!ObjectId.isValid(req.session.userId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid user ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      let id: string = xss(req.session.userId);
+      req.session.destroy((err) => {
+        let e: ErrorWithStatus = {
+          message: `Logout Failed`,
+          status: 500,
+        };
+        res.status(e.status).send(`${e.message}: ${err}`);
+      });
+      let deleteUser = await users.deleteUser(id);
+      res.status(200).send(deleteUser);
     }
-    let id: string = xss(req.params.userId);
-    let deleteUser = await users.deleteUser(id);
-    res.status(200).send(deleteUser);
   } catch (e: any) {
     res.status(e.status).send(e.message);
   }

@@ -46,46 +46,49 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
 
 router.post("/new", async (req: express.Request, res: express.Response) => {
   try {
-    let eventDetails = req.body;
-    let eventImages: string[] = [];
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      let eventDetails = req.body;
+      let eventImages: string[] = [];
 
-    let newEvent: IEvent = {
-      name: xss(eventDetails.name.trim()),
-      category: eventDetails.category,
-      hostId: xss(eventDetails.hostId),
-      venue: {
-        address: xss(eventDetails.venue.address.trim()),
-        city: xss(eventDetails.venue.city.trim()),
-        state: xss(eventDetails.venue.state.trim()),
-        country: xss(eventDetails.venue.country.trim()),
-        zip: Number(xss(eventDetails.venue.zip)),
-        geoLocation: {
-          lat: Number(xss(eventDetails.venue.geoLocation.lat)),
-          long: Number(xss(eventDetails.venue.geoLocation.long)),
+      let newEvent: IEvent = {
+        name: xss(eventDetails.name.trim()),
+        category: eventDetails.category,
+        hostId: xss(req.session.userId),
+        venue: {
+          address: xss(eventDetails.venue.address.trim()),
+          city: xss(eventDetails.venue.city.trim()),
+          state: xss(eventDetails.venue.state.trim()),
+          country: xss(eventDetails.venue.country.trim()),
+          zip: Number(xss(eventDetails.venue.zip)),
+          geoLocation: {
+            lat: Number(xss(eventDetails.venue.geoLocation.lat)),
+            long: Number(xss(eventDetails.venue.geoLocation.long)),
+          },
         },
-      },
-      minAge: Number(xss(eventDetails.minAge)),
-      price: Number(xss(eventDetails.price)),
-      description: xss(eventDetails.description),
-      eventImgs: eventImages,
-      eventTimeStamp: xss(eventDetails.eventTimeStamp),
-      totalSeats: Number(xss(eventDetails.totalSeats)),
-      bookedSeats: Number(xss(eventDetails.bookedSeats)),
-      cohostArr: [],
-      attendeesArr: [],
-    };
+        minAge: Number(xss(eventDetails.minAge)),
+        price: Number(xss(eventDetails.price)),
+        description: xss(eventDetails.description),
+        eventImgs: eventImages,
+        eventTimeStamp: xss(eventDetails.eventTimeStamp),
+        totalSeats: Number(xss(eventDetails.totalSeats)),
+        bookedSeats: Number(xss(eventDetails.bookedSeats)),
+        cohostArr: [],
+        attendeesArr: [],
+      };
 
-    await eventValidationSchema.validateAsync(newEvent);
+      await eventValidationSchema.validateAsync(newEvent);
 
-    let createdEvent: IEvent | undefined = await events.createEvent(newEvent);
-    if (createdEvent && createdEvent._id) {
-      let updatedUser = await users.addHostedEvents(createdEvent.hostId, createdEvent._id?.toString());
-      if (updatedUser) {
-        res.status(200).send(createdEvent);
+      let createdEvent: IEvent | undefined = await events.createEvent(newEvent);
+      if (createdEvent && createdEvent._id) {
+        let updatedUser = await users.addHostedEvents(createdEvent.hostId, createdEvent._id?.toString());
+        if (updatedUser) {
+          res.status(200).send(createdEvent);
+        }
       }
     }
   } catch (e: any) {
-    console.log("L87: ", e);
     if (e.isJoi) {
       let err: ErrorWithStatus = {
         message: `${e.details[0].message}`,
@@ -99,51 +102,54 @@ router.post("/new", async (req: express.Request, res: express.Response) => {
 
 router.put("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    let event = req.body;
-    console.log(event);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      let event = req.body;
 
-    let eventId: string = req.params.eventId;
-    eventId = xss(eventId);
+      let eventId: string = req.params.eventId;
+      eventId = xss(eventId);
 
-    if (!ObjectId.isValid(eventId)) {
-      let err: ErrorWithStatus = {
-        message: "Invalid Event ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-      return;
-    }
+      if (!ObjectId.isValid(eventId)) {
+        let err: ErrorWithStatus = {
+          message: "Invalid Event ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+        return;
+      }
 
-    let modifiedEvent: IEvent = {
-      name: xss(event.name.trim()),
-      category: event.category,
-      price: event.price,
-      hostId: event.hostId,
-      minAge: event.minAge,
-      description: event.description,
-      eventTimeStamp: event.eventTimeStamp,
-      bookedSeats: event.bookedSeats,
-      totalSeats: event.totalSeats,
-      cohostArr: event.cohostArr,
-      attendeesArr: event.attendeesArr,
-      eventImgs: event.eventImgs,
-      venue: {
-        address: event.venue.address,
-        city: event.venue.city,
-        state: event.venue.state,
-        country: event.venue.country,
-        zip: event.venue.zip,
-        geoLocation: {
-          lat: event.venue.geoLocation.lat,
-          long: event.venue.geoLocation.long,
+      let modifiedEvent: IEvent = {
+        name: xss(event.name.trim()),
+        category: event.category,
+        price: event.price,
+        hostId: event.hostId,
+        minAge: event.minAge,
+        description: event.description,
+        eventTimeStamp: event.eventTimeStamp,
+        bookedSeats: event.bookedSeats,
+        totalSeats: event.totalSeats,
+        cohostArr: event.cohostArr,
+        attendeesArr: event.attendeesArr,
+        eventImgs: event.eventImgs,
+        venue: {
+          address: event.venue.address,
+          city: event.venue.city,
+          state: event.venue.state,
+          country: event.venue.country,
+          zip: event.venue.zip,
+          geoLocation: {
+            lat: event.venue.geoLocation.lat,
+            long: event.venue.geoLocation.long,
+          },
         },
-      },
-    };
+      };
 
-    await eventValidationSchema.validateAsync(event);
-    let updatedUser: IEvent | undefined = await events.modifyEvent(eventId, modifiedEvent);
-    if (updatedUser) {
-      res.status(200).send(updatedUser);
+      await eventValidationSchema.validateAsync(event);
+      let updatedUser: IEvent | undefined = await events.modifyEvent(eventId, modifiedEvent);
+      if (updatedUser) {
+        res.status(200).send(updatedUser);
+      }
     }
   } catch (e: any) {
     console.log("L216: ", e);
@@ -186,23 +192,27 @@ router.get("/:eventId", async (req: express.Request, res: express.Response) => {
 
 router.delete("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    if (!ObjectId.isValid(req.params.eventId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid event ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-    let id: string = xss(req.params.eventId);
-    let deletedEvent = await events.deleteEvent(id);
-    if(deletedEvent.deleted) {
-      let updatedUser = await users.removeHostedEvents('todo', id);
-      if(updatedUser) {
-        res.status(200).send(deletedEvent);
-
-      }
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
     } else {
-      res.status(400).send({deleted: false});
+      if (!ObjectId.isValid(req.params.eventId.toString())) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid event ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      let id: string = xss(req.params.eventId);
+      let hostId: string = xss(req.session.userId);
+      let deletedEvent = await events.deleteEvent(id, hostId);
+      if (deletedEvent.deleted) {
+        let updatedUser = await users.removeHostedEvents("todo", id);
+        if (updatedUser) {
+          res.status(200).send(deletedEvent);
+        }
+      } else {
+        res.status(400).send({ deleted: false });
+      }
     }
   } catch (e: any) {
     res.status(e.status).send(e.message);
@@ -211,70 +221,75 @@ router.delete("/:eventId", async (req: express.Request, res: express.Response) =
 
 router.patch("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    let { cohostId, action } = req.body;
-    let eventId = xss(req.params.eventId);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      let { cohostId, action } = req.body;
+      let eventId = xss(req.params.eventId);
+      let hostId = xss(req.session.userId);
 
-    if (!cohostId) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, please select hostId",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!ObjectId.isValid(cohostId)) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid host ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!ObjectId.isValid(eventId)) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid event ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!action) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, please select your action",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-    cohostId = xss(cohostId);
-    action = xss(action);
-
-    let updatedEventWithCohost: IEvent;
-    switch (action) {
-      case "add":
-        updatedEventWithCohost = await events.addCohost(eventId, cohostId);
-        if (updatedEventWithCohost) {
-          let updateUser = await users.addCohostedEvents(cohostId, eventId);
-          if (updateUser) {
-            res.status(200).send({ addCohost: true });
-          }
-        }
-        break;
-      case "remove":
-        updatedEventWithCohost = await events.removeCohost(eventId, cohostId);
-        if (updatedEventWithCohost) {
-          let updateUser = await users.removeCohostedEvents(cohostId, eventId);
-          if (updateUser) {
-            res.status(200).send({ removeCohost: true });
-          }
-        }
-        break;
-      default:
+      if (!cohostId) {
         let err: ErrorWithStatus = {
-          message: "Bad Parameters, invalid action",
+          message: "Bad Parameters, please select hostId",
           status: 400,
         };
         res.status(err.status).send(err.message);
-        break;
+      }
+
+      if (!ObjectId.isValid(cohostId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid host ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+
+      if (!ObjectId.isValid(eventId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid event ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+
+      if (!action) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, please select your action",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      cohostId = xss(cohostId);
+      action = xss(action);
+
+      let updatedEventWithCohost: IEvent;
+      switch (action) {
+        case "add":
+          updatedEventWithCohost = await events.addCohost(eventId, cohostId, hostId);
+          if (updatedEventWithCohost) {
+            let updateUser = await users.addCohostedEvents(cohostId, eventId);
+            if (updateUser) {
+              res.status(200).send({ addCohost: true });
+            }
+          }
+          break;
+        case "remove":
+          updatedEventWithCohost = await events.removeCohost(eventId, cohostId, hostId);
+          if (updatedEventWithCohost) {
+            let updateUser = await users.removeCohostedEvents(cohostId, eventId);
+            if (updateUser) {
+              res.status(200).send({ removeCohost: true });
+            }
+          }
+          break;
+        default:
+          let err: ErrorWithStatus = {
+            message: "Bad Parameters, invalid action",
+            status: 400,
+          };
+          res.status(err.status).send(err.message);
+          break;
+      }
     }
   } catch (e: any) {
     res.status(e.status).send(e.message);
@@ -283,70 +298,75 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
 
 router.patch("/:eventId/registerEvent", async (req: express.Request, res: express.Response) => {
   try {
-    let { attendeeId, action } = req.body;
-    let eventId = xss(req.params.eventId);
+    if (!req.session.userId) {
+      res.status(403).send("User not logged in");
+    } else {
+      let { attendeeId, action } = req.body;
+      let eventId = xss(req.params.eventId);
+      let hostId = xss(req.session.userId);
 
-    if (!attendeeId) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, please select attendeeId",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!ObjectId.isValid(attendeeId)) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid attendee ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!ObjectId.isValid(eventId)) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid event ID",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-
-    if (!action) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, please select your action",
-        status: 400,
-      };
-      res.status(err.status).send(err.message);
-    }
-    attendeeId = xss(attendeeId);
-    action = xss(action);
-
-    let updatedEventWithCohost: IEvent;
-    switch (action) {
-      case "add":
-        updatedEventWithCohost = await events.addAttendee(eventId, attendeeId);
-        if (updatedEventWithCohost) {
-          let updateUser = await users.addRegisteredEvents(attendeeId, eventId);
-          if (updateUser) {
-            res.status(200).send({ addAttendee: true });
-          }
-        }
-        break;
-      case "remove":
-        updatedEventWithCohost = await events.removeAttendee(eventId, attendeeId);
-        if (updatedEventWithCohost) {
-          let updateUser = await users.removeRegisteredEvents(attendeeId, eventId);
-          if (updateUser) {
-            res.status(200).send({ removeAttendee: true });
-          }
-        }
-        break;
-      default:
+      if (!attendeeId) {
         let err: ErrorWithStatus = {
-          message: "Bad Parameters, invalid action",
+          message: "Bad Parameters, please select attendeeId",
           status: 400,
         };
         res.status(err.status).send(err.message);
-        break;
+      }
+
+      if (!ObjectId.isValid(attendeeId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid attendee ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+
+      if (!ObjectId.isValid(eventId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid event ID",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+
+      if (!action) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, please select your action",
+          status: 400,
+        };
+        res.status(err.status).send(err.message);
+      }
+      attendeeId = xss(attendeeId);
+      action = xss(action);
+
+      let updatedEventWithAttendee: IEvent;
+      switch (action) {
+        case "add":
+          updatedEventWithAttendee = await events.addAttendee(eventId, attendeeId);
+          if (updatedEventWithAttendee) {
+            let updateUser = await users.addRegisteredEvents(attendeeId, eventId);
+            if (updateUser) {
+              res.status(200).send({ addAttendee: true });
+            }
+          }
+          break;
+        case "remove":
+          updatedEventWithAttendee = await events.removeAttendee(eventId, attendeeId);
+          if (updatedEventWithAttendee) {
+            let updateUser = await users.removeRegisteredEvents(attendeeId, eventId);
+            if (updateUser) {
+              res.status(200).send({ removeAttendee: true });
+            }
+          }
+          break;
+        default:
+          let err: ErrorWithStatus = {
+            message: "Bad Parameters, invalid action",
+            status: 400,
+          };
+          res.status(err.status).send(err.message);
+          break;
+      }
     }
   } catch (e: any) {
     res.status(e.status).send(e.message);

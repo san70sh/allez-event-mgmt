@@ -4,6 +4,7 @@ import { collections, events } from "../config/mongoCollections";
 // import { ObjectId } from "mongoose";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
+import users from "./users";
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
   name: joi.string().required(),
@@ -56,7 +57,7 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
     };
     throw err;
   }
-}
+};
 
 async function createEvent(eventDetails: IEvent): Promise<IEvent> {
   await eventValidationSchema.validateAsync(eventDetails);
@@ -110,7 +111,16 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
       throw err;
     } else {
       if (insertedEvent?.insertedId) {
-        return getEventById(insertedEvent?.insertedId.toString());
+        let updatedUser = await users.addHostedEvents(newEvent.hostId, insertedEvent.insertedId.toString());
+        if (updatedUser) {
+          return getEventById(insertedEvent?.insertedId.toString());
+        } else {
+          let err: ErrorWithStatus = {
+            message: "Unable to update event in user",
+            status: 400,
+          };
+          throw err;
+        }
       } else {
         let err: ErrorWithStatus = {
           message: "Unable to retrieve eventId",
@@ -185,29 +195,37 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     _id: eventId,
   });
   if (existingEvent) {
-    let updatedEvent = await collections.events?.updateOne(
-      { _id: modifiedEvent._id },
-      {
-        $set: {
-          name: modifiedEvent.name,
-          category: modifiedEvent.category,
-          venue: modifiedEvent.venue,
-          eventImgs: modifiedEvent.eventImgs,
-          totalSeats: modifiedEvent.totalSeats,
-          price: modifiedEvent.price,
-          description: modifiedEvent.description,
-          eventTimeStamp: modifiedEvent.eventTimeStamp,
-        },
-      }
-    );
-    if (updatedEvent?.modifiedCount == 0) {
+    if (existingEvent.hostId != modifiedEvent.hostId) {
       let err: ErrorWithStatus = {
-        message: "Unable to modify event",
-        status: 500,
+        message: "Invalid Host",
+        status: 403,
       };
       throw err;
     } else {
-      return getEventById(existingEvent._id?.toString());
+      let updatedEvent = await collections.events?.updateOne(
+        { _id: modifiedEvent._id },
+        {
+          $set: {
+            name: modifiedEvent.name,
+            category: modifiedEvent.category,
+            venue: modifiedEvent.venue,
+            eventImgs: modifiedEvent.eventImgs,
+            totalSeats: modifiedEvent.totalSeats,
+            price: modifiedEvent.price,
+            description: modifiedEvent.description,
+            eventTimeStamp: modifiedEvent.eventTimeStamp,
+          },
+        }
+      );
+      if (updatedEvent?.modifiedCount == 0) {
+        let err: ErrorWithStatus = {
+          message: "Unable to modify event",
+          status: 500,
+        };
+        throw err;
+      } else {
+        return getEventById(existingEvent._id?.toString());
+      }
     }
   } else {
     let err: ErrorWithStatus = {
@@ -218,22 +236,30 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
   }
 }
 
-async function deleteEvent(eventId: string): Promise<{deleted: Boolean}> {
-  validityCheck(undefined, eventId);
+async function deleteEvent(eventId: string, hostId: string): Promise<{ deleted: Boolean }> {
+  validityCheck(hostId, eventId);
 
   let queryId: ObjectId = new ObjectId(eventId);
   await events();
   let existingEvent: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
   if (existingEvent) {
-    let deletedEvent = await collections.events?.deleteOne({ _id: queryId });
-    if (deletedEvent?.deletedCount == 1) {
-      return { deleted: true };
-    } else {
+    if (existingEvent.hostId != hostId) {
       let err: ErrorWithStatus = {
-        message: "Unable to delete event in database",
-        status: 500,
+        message: "Invalid Host",
+        status: 403,
       };
       throw err;
+    } else {
+      let deletedEvent = await collections.events?.deleteOne({ _id: queryId });
+      if (deletedEvent?.deletedCount == 1) {
+        return { deleted: true };
+      } else {
+        let err: ErrorWithStatus = {
+          message: "Unable to delete event in database",
+          status: 500,
+        };
+        throw err;
+      }
     }
   } else {
     let err: ErrorWithStatus = {
@@ -278,7 +304,7 @@ async function deleteAllEventsOfHost(hostId: string) {
 
 async function addEventImages(eventId: string, imgArr: string[]) {}
 
-async function addCohost(eventId: string, cohostId: string): Promise<IEvent> {
+async function addCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
   validityCheck(cohostId, eventId);
 
   await events();
@@ -286,39 +312,47 @@ async function addCohost(eventId: string, cohostId: string): Promise<IEvent> {
   let queriedEvent: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
   let updatedEvent;
   if (queriedEvent) {
-    let attendeesArr: string[] = queriedEvent.attendeesArr!;
-    if (attendeesArr.includes(cohostId)) {
-      updatedEvent = await collections.events?.updateOne(
-        { _id: queryId },
-        {
-          $pull: {
-            attendeesArr: cohostId,
-          },
-          $addToSet: {
-            cohostArr: cohostId,
-          },
-        }
-      );
-    } else {
-      updatedEvent = await collections.events?.updateOne(
-        { _id: queryId },
-        {
-          $addToSet: {
-            cohostArr: cohostId,
-          },
-        }
-      );
-    }
-
-    if (updatedEvent?.modifiedCount == 1) {
-      let event: IEvent = await getEventById(eventId);
-      return event;
-    } else {
+    if (queriedEvent.hostId != hostId) {
       let err: ErrorWithStatus = {
-        message: "Unable to update event",
-        status: 500,
+        message: "Invalid Host",
+        status: 403,
       };
       throw err;
+    } else {
+      let attendeesArr: string[] = queriedEvent.attendeesArr!;
+      if (attendeesArr.includes(cohostId)) {
+        updatedEvent = await collections.events?.updateOne(
+          { _id: queryId },
+          {
+            $pull: {
+              attendeesArr: cohostId,
+            },
+            $addToSet: {
+              cohostArr: cohostId,
+            },
+          }
+        );
+      } else {
+        updatedEvent = await collections.events?.updateOne(
+          { _id: queryId },
+          {
+            $addToSet: {
+              cohostArr: cohostId,
+            },
+          }
+        );
+      }
+
+      if (updatedEvent?.modifiedCount == 1) {
+        let event: IEvent = await getEventById(eventId);
+        return event;
+      } else {
+        let err: ErrorWithStatus = {
+          message: "Unable to update event",
+          status: 500,
+        };
+        throw err;
+      }
     }
   } else {
     let err: ErrorWithStatus = {
@@ -329,31 +363,39 @@ async function addCohost(eventId: string, cohostId: string): Promise<IEvent> {
   }
 }
 
-async function removeCohost(eventId: string, cohostId: string): Promise<IEvent> {
+async function removeCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
   validityCheck(cohostId, eventId);
 
   await events();
   let queryId: ObjectId = new ObjectId(eventId);
   let queriedEvent: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
   if (queriedEvent) {
-    let updatedEvent = await collections.events?.updateOne(
-      { _id: queryId },
-      {
-        $pull: {
-          cohostArr: cohostId,
-        },
-      }
-    );
-
-    if (updatedEvent?.modifiedCount == 1) {
-      let event: IEvent = await getEventById(eventId);
-      return event;
-    } else {
+    if (queriedEvent.hostId != hostId) {
       let err: ErrorWithStatus = {
-        message: "Unable to remove cohost",
-        status: 500,
+        message: "Invalid Host",
+        status: 403,
       };
       throw err;
+    } else {
+      let updatedEvent = await collections.events?.updateOne(
+        { _id: queryId },
+        {
+          $pull: {
+            cohostArr: cohostId,
+          },
+        }
+      );
+
+      if (updatedEvent?.modifiedCount == 1) {
+        let event: IEvent = await getEventById(eventId);
+        return event;
+      } else {
+        let err: ErrorWithStatus = {
+          message: "Unable to remove cohost",
+          status: 500,
+        };
+        throw err;
+      }
     }
   } else {
     let err: ErrorWithStatus = {
@@ -454,5 +496,5 @@ export default {
   addAttendee,
   removeAttendee,
   addEventImages,
-  deleteAllEventsOfHost
+  deleteAllEventsOfHost,
 };
