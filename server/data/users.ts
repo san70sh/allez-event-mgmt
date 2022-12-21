@@ -357,8 +357,10 @@ async function addHostedEvents(id: string, eventId: string): Promise<IUser> {
         hostEventArray: eventId
       }
     });
+    
     if(registeredUser && registeredUser.modifiedCount == 1 ) {
-      return getUserById(id);
+      let user: IUser = await getUserById(id);
+      return user;
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to host user in event",

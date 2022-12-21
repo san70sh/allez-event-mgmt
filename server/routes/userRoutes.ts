@@ -13,7 +13,7 @@ const loginSchema = joi.object({
     .string()
     .pattern(/[a-z0-9]+@[a-z]+\.[a-z]{2,3}/)
     .required(),
-  password: joi.string().required(),
+  password: joi.string().required().min(8).pattern(/[\x20-\x7E]+/),
 });
 
 const userValidationSchema = joi.object({
@@ -52,22 +52,22 @@ const userValidationSchema = joi.object({
   attendEventArray: joi.optional(),
 });
 
-router.get("/logout", async (req, res) => {
-  try {
-    req.session.destroy((err) => {
-      if (err) {
-        let e: ErrorWithStatus = {
-          message: `Logout Failed`,
-          status: 500,
-        };
-        res.status(e.status).send(`${e.message}: ${err}`);
-      }
-    });
-    return res.status(200).send({ logout: true });
-  } catch (e) {
-    return res.status(500).send({ logout: false, result: e });
-  }
-});
+// router.get("/logout", async (req, res) => {
+//   try {
+//     req.session.destroy((err) => {
+//       if (err) {
+//         let e: ErrorWithStatus = {
+//           message: `Logout Failed`,
+//           status: 500,
+//         };
+//         return res.status(e.status).send(`${e.message}: ${err}`);
+//       }
+//     });
+//     return return res.status(200).send({ logout: true });
+//   } catch (e) {
+//     return return res.status(500).send({ logout: false, result: e });
+//   }
+// });
 
 router.post("/signup", async (req: express.Request, res: express.Response) => {
   try {
@@ -79,7 +79,7 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
         message: "Please enter a valid password",
         status: 400,
       };
-      res.status(err.status).send(err.message);
+      return res.status(err.status).send(err.message);
     }
 
     let newUser: IUser = {
@@ -101,8 +101,8 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
 
     let createdUser: IUser | undefined = await users.createUser(newUser);
     if (createdUser) {
-      req.session.userId = createdUser._id?.toString();
-      res.status(200).send(createdUser);
+      // req.session.userId = createdUser._id?.toString();
+      return res.status(200).send(createdUser);
     }
   } catch (e: any) {
     console.log("L177: ", e);
@@ -111,17 +111,17 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
         message: `${e.details[0].message}`,
         status: 400,
       };
-      res.status(err.status).send(err.message);
+      return res.status(err.status).send(err.message);
     }
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
 router.put("/", async (req: express.Request, res: express.Response) => {
   try {
-    if (!req.session.userId) {
-      res.status(403).send("User not logged in");
-    }
+    // if (!req.session.userId) {
+    //   return res.status(403).send("User not logged in");
+    // }
 
     let user = req.body;
     await userValidationSchema.validateAsync(user);
@@ -145,7 +145,7 @@ router.put("/", async (req: express.Request, res: express.Response) => {
 
     let updatedUser: IUser | undefined = await users.modifyUser(modifiedUser);
     if (updatedUser) {
-      res.status(200).send(updatedUser);
+      return res.status(200).send(updatedUser);
     }
   } catch (e: any) {
     if (e.isJoi) {
@@ -153,9 +153,9 @@ router.put("/", async (req: express.Request, res: express.Response) => {
         message: `${e.details[0].message}`,
         status: 400,
       };
-      res.status(err.status).send(err.message);
+      return res.status(err.status).send(err.message);
     }
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
@@ -170,9 +170,9 @@ router.put("/", async (req: express.Request, res: express.Response) => {
 //         message: `${e.details[0].message}`,
 //         status: 400,
 //       };
-//       res.status(err.status).send(err.message);
+//       return res.status(err.status).send(err.message);
 //     }
-//     res.status(e.status).send(e.message);
+//     return res.status(e.status).send(e.message);
 //   }
 // })
 
@@ -183,104 +183,112 @@ router.route("/:userId").get( async (req, res) => {
         message: "Bad Parameters, Invalid user ID",
         status: 400,
       };
-      res.status(err.status).send(err.message);
+      return res.status(err.status).send(err.message);
     }
     let id: string = xss(req.params.userId);
     let getUserDetails = await users.getUserById(id);
-    res.status(200).send(getUserDetails);
+    return res.status(200).send(getUserDetails);
   } catch (e: any) {
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/hostedEvents", async (req, res) => {
+router.get("/hostedEvents/:userId", async (req, res) => {
   try {
-    if (!req.session.userId) {
-      res.status(403).send("User not logged in");
-    } else {
-      if (!ObjectId.isValid(req.session.userId)) {
+    // if (!req.session.userId) {
+    //   return res.status(403).send("User not logged in");
+    // } else {
+      // if (!ObjectId.isValid(req.session.userId)) {
+        if (!ObjectId.isValid(req.params.userId)) {
         let err: ErrorWithStatus = {
           message: "Bad Parameters, Invalid user ID",
           status: 400,
         };
-        res.status(err.status).send(err.message);
+        return res.status(err.status).send(err.message);
       }
-      let id: string = xss(req.session.userId);
+      // let id: string = xss(req.session.userId);
+      let id: string = xss(req.params.userId);
       let getUserHostedEvents = await users.getHostedEvents(id);
-      res.status(200).send(getUserHostedEvents);
-    }
+      return res.status(200).send(getUserHostedEvents);
+    // }
   } catch (e: any) {
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/cohostedEvents", async (req, res) => {
+router.get("/cohostedEvents/:userId", async (req, res) => {
   try {
-    if (!req.session.userId) {
-      res.status(403).send("User not logged in");
-    } else {
-      if (!ObjectId.isValid(req.session.userId)) {
+    // if (!req.session.userId) {
+    //   return res.status(403).send("User not logged in");
+    // } else {
+      // if (!ObjectId.isValid(req.session.userId)) {
+        if (!ObjectId.isValid(req.params.userId)) {
         let err: ErrorWithStatus = {
           message: "Bad Parameters, Invalid user ID",
           status: 400,
         };
-        res.status(err.status).send(err.message);
+        return res.status(err.status).send(err.message);
       }
-      let id: string = xss(req.session.userId);
+      // let id: string = xss(req.session.userId);
+      let id: string = xss(req.params.userId);
       let getUserCohostedEvents = await users.getCohostedEvents(id);
-      res.status(200).send(getUserCohostedEvents);
-    }
+      return res.status(200).send(getUserCohostedEvents);
+    // }
   } catch (e: any) {
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/registeredEvents", async (req, res) => {
+router.get("/registeredEvents/:userId", async (req, res) => {
   try {
-    if (!req.session.userId) {
-      res.status(403).send("User not logged in");
-    } else {
-      if (!ObjectId.isValid(req.session.userId)) {
+    // if (!req.session.userId) {
+    //   return res.status(403).send("User not logged in");
+    // } else {
+    //   if (!ObjectId.isValid(req.session.userId)) {
+      if (!ObjectId.isValid(req.params.userId)) {
         let err: ErrorWithStatus = {
           message: "Bad Parameters, Invalid user ID",
           status: 400,
         };
-        res.status(err.status).send(err.message);
+        return res.status(err.status).send(err.message);
       }
-      let id: string = xss(req.session.userId);
+      // let id: string = xss(req.session.userId);
+      let id: string = xss(req.params.userId);
       let getUserRegisteredEvents = await users.getRegisteredEvents(id);
-      res.status(200).send(getUserRegisteredEvents);
-    }
+      return res.status(200).send(getUserRegisteredEvents);
+    // }
   } catch (e: any) {
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 
-router.delete("/", async (req, res) => {
+router.delete("/:userId", async (req, res) => {
   try {
-    if (!req.session.userId) {
-      res.status(403).send("User not logged in");
-    } else {
-      if (!ObjectId.isValid(req.session.userId)) {
+    // if (!req.session.userId) {
+    //   return res.status(403).send("User not logged in");
+    // } else {
+    //   if (!ObjectId.isValid(req.session.userId)) {
+      if (!ObjectId.isValid(req.params.userId)) {
         let err: ErrorWithStatus = {
           message: "Bad Parameters, Invalid user ID",
           status: 400,
         };
-        res.status(err.status).send(err.message);
+        return res.status(err.status).send(err.message);
       }
-      let id: string = xss(req.session.userId);
+      // let id: string = xss(req.session.userId);
+      let id: string = xss(req.params.userId);
       req.session.destroy((err) => {
         let e: ErrorWithStatus = {
           message: `Logout Failed`,
           status: 500,
         };
-        res.status(e.status).send(`${e.message}: ${err}`);
+        return res.status(e.status).send(`${e.message}: ${err}`);
       });
       let deleteUser = await users.deleteUser(id);
-      res.status(200).send(deleteUser);
-    }
+      return res.status(200).send(deleteUser);
+    // }
   } catch (e: any) {
-    res.status(e.status).send(e.message);
+    return res.status(e.status).send(e.message);
   }
 });
 

@@ -38,7 +38,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   attendeesArr: joi.array(),
   description: joi.string().required(),
   price: joi.number().required().min(0),
-  eventTimeStamp: joi.date().required().min("now"),
+  eventTimeStamp: joi.date().required().greater("now"),
 });
 
 const validityCheck = (id: string | undefined, eventId: string | undefined) => {
