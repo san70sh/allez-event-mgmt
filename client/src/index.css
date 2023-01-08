@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+input:focus-within ~ label,
+input:not(:placeholder-shown) ~ label {
+  @apply transform scale-75 -translate-y-6 duration-300;
+}
+
+input:focus-within ~ label {
+  @apply text-blue-500 duration-300;
+}
+
+input:not(:focus-within) ~ label {
+  @apply transform duration-300;
+}

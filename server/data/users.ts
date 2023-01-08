@@ -60,67 +60,6 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 }
 
 async function createUser(person: IUser): Promise<IUser> {
-  // if (
-  //   typeof person.name != "string" ||
-  //   typeof person.gender != "string" ||
-  //   typeof person.email != "string" ||
-  //   typeof person.address.city != "string" ||
-  //   typeof person.address.state != "string" ||
-  //   typeof person.address.postal_code != "string" ||
-  //   typeof person.address.country != "string"
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Registration Details Not In String Format",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
-  // if (
-  //   !person.name.trim() ||
-  //   !person.gender.trim() ||
-  //   !person.email.trim() ||
-  //   !person.address.city.trim() ||
-  //   !person.address.state.trim() ||
-  //   !person.address.postal_code ||
-  //   !person.address.country.trim()
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Registration Details Might Be Empty Strings",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
-  // if (isNaN(Number(person.phone))) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Phone Number Is Not Number",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-  // if (isNaN(Number(person.address.postal_code))) {
-  //   let error: ErrorWithStatus = {
-  //     message: "ZIP Is Not Number",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-  // if (
-  //   !isNaN(Number(person.name)) ||
-  //   !isNaN(Number(person.address.city)) ||
-  //   !isNaN(Number(person.address.state)) ||
-  //   !isNaN(Number(person.address.country)) ||
-  //   !isNaN(Number(person.gender)) ||
-  //   !isNaN(Number(person.email))
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Any Detail Of The User Might Be A Number Which Require To Be A String",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
   await userValidationSchema.validateAsync(person);
 
   let newUser: IUser = {

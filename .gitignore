@@ -105,3 +105,6 @@ dist
 
 #Certificates
 cert/
+
+#Authentication
+auth_config.json
