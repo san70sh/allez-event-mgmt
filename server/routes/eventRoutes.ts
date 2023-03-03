@@ -46,16 +46,12 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
 
 router.post("/new", async (req: express.Request, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-      // res.status(403).send("User not logged in");
-    // } else {
       let eventDetails = req.body;
       let eventImages: string[] = [];
 
       let newEvent: IEvent = {
         name: xss(eventDetails.name.trim()),
         category: eventDetails.category,
-        // hostId: xss(req.session.userId),
         hostId: xss(eventDetails.hostId),       //to remove once session is implemented
         venue: {
           address: xss(eventDetails.venue.address.trim()),
@@ -85,7 +81,6 @@ router.post("/new", async (req: express.Request, res: express.Response) => {
       if (createdEvent && createdEvent._id) {
           return res.status(200).send(createdEvent);
       }
-    // }
   } catch (e: any) {
     if (e.isJoi) {
       let err: ErrorWithStatus = {
@@ -100,9 +95,6 @@ router.post("/new", async (req: express.Request, res: express.Response) => {
 
 router.put("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   res.status(403).send("User not logged in");
-    // } else {
       let event = req.body;
 
       let eventId: string = req.params.eventId;
@@ -148,7 +140,6 @@ router.put("/:eventId", async (req: express.Request, res: express.Response) => {
       if (updatedUser) {
         return res.status(200).send(updatedUser);
       }
-    // }
   } catch (e: any) {
     console.log("L216: ", e);
     if (e.isJoi) {
@@ -190,9 +181,6 @@ router.get("/:eventId", async (req: express.Request, res: express.Response) => {
 
 router.delete("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   res.status(403).send("User not logged in");
-    // } else {
       if (!ObjectId.isValid(req.params.eventId.toString())) {
         let err: ErrorWithStatus = {
           message: "Bad Parameters, Invalid event ID",
@@ -201,18 +189,18 @@ router.delete("/:eventId", async (req: express.Request, res: express.Response) =
         return res.status(err.status).send(err.message);
       }
       let id: string = xss(req.params.eventId);
-      // let hostId: string = xss(req.session.userId);
       let hostId: string = xss(req.params.hostId);
+      let userId = hostId.split("|")[0];
+      let auth = hostId.split("|")[1];
       let deletedEvent = await events.deleteEvent(id, hostId);
       if (deletedEvent.deleted) {
-        let updatedUser = await users.removeHostedEvents("todo", id);
+        let updatedUser = await users.removeHostedEvents(userId, auth, id);
         if (updatedUser) {
           return res.status(200).send(deletedEvent);
         }
       } else {
         return res.status(400).send({ deleted: false });
       }
-    // }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
@@ -220,12 +208,8 @@ router.delete("/:eventId", async (req: express.Request, res: express.Response) =
 
 router.patch("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   res.status(403).send("User not logged in");
-    // } else {
       let { cohostId, action } = req.body;
       let eventId = xss(req.params.eventId);
-      // let hostId = xss(req.session.userId);
       let hostId: string = xss(req.params.hostId);
 
       if (!cohostId) {
@@ -261,13 +245,15 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
       }
       cohostId = xss(cohostId);
       action = xss(action);
+      let userId = cohostId.split("|")[0];
+      let auth = cohostId.split("|")[1];
 
       let updatedEventWithCohost: IEvent;
       switch (action) {
         case "add":
           updatedEventWithCohost = await events.addCohost(eventId, cohostId, hostId);
           if (updatedEventWithCohost) {
-            let updateUser = await users.addCohostedEvents(cohostId, eventId);
+            let updateUser = await users.addCohostedEvents(userId, auth, eventId);
             if (updateUser) {
               return res.status(200).send({ addCohost: true });
             }
@@ -276,7 +262,7 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
         case "remove":
           updatedEventWithCohost = await events.removeCohost(eventId, cohostId, hostId);
           if (updatedEventWithCohost) {
-            let updateUser = await users.removeCohostedEvents(cohostId, eventId);
+            let updateUser = await users.removeCohostedEvents(userId, auth, eventId);
             if (updateUser) {
               return res.status(200).send({ removeCohost: true });
             }
@@ -288,8 +274,6 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
             status: 400,
           };
           return res.status(err.status).send(err.message);
-          break;
-      // }
     }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
@@ -298,12 +282,8 @@ router.patch("/:eventId", async (req: express.Request, res: express.Response) =>
 
 router.patch("/:eventId/registerEvent", async (req: express.Request, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   res.status(403).send("User not logged in");
-    // } else {
       let { attendeeId, action } = req.body;
       let eventId = xss(req.params.eventId);
-      // let hostId = xss(req.session.userId);
       let hostId: string = xss(req.params.hostId);
 
       if (!attendeeId) {
@@ -339,13 +319,15 @@ router.patch("/:eventId/registerEvent", async (req: express.Request, res: expres
       }
       attendeeId = xss(attendeeId);
       action = xss(action);
+      let userId = attendeeId.split("|")[0];
+      let auth = attendeeId.split("|")[1];
 
       let updatedEventWithAttendee: IEvent;
       switch (action) {
         case "add":
           updatedEventWithAttendee = await events.addAttendee(eventId, attendeeId);
           if (updatedEventWithAttendee) {
-            let updateUser = await users.addRegisteredEvents(attendeeId, eventId);
+            let updateUser = await users.addRegisteredEvents(userId, auth, eventId);
             if (updateUser) {
               return res.status(200).send({ addAttendee: true });
             }
@@ -354,7 +336,7 @@ router.patch("/:eventId/registerEvent", async (req: express.Request, res: expres
         case "remove":
           updatedEventWithAttendee = await events.removeAttendee(eventId, attendeeId);
           if (updatedEventWithAttendee) {
-            let updateUser = await users.removeRegisteredEvents(attendeeId, eventId);
+            let updateUser = await users.removeRegisteredEvents(userId, auth, eventId);
             if (updateUser) {
               return res.status(200).send({ removeAttendee: true });
             }
@@ -367,7 +349,6 @@ router.patch("/:eventId/registerEvent", async (req: express.Request, res: expres
           };
           return res.status(err.status).send(err.message);
           break;
-      // }
     }
   } catch (e: any) {
     return res.status(e.status).send(e.message);

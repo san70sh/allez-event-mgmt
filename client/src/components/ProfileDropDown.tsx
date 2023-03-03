@@ -31,7 +31,7 @@ export const ProfileDropDown: React.FC<{ header: UserItem; items: DropDownItem[]
     <Menu as="div">
       <div>
         <Menu.Button className="bg-orange-400 text-orange-50 p-3 font-medium rounded-full scale-50">
-          <img src={header.user.picture} alt={header.user.name} className="rounded-full"></img>
+          <img src={header.user.picture} alt={header.user.name} className="rounded-full" referrerPolicy="no-referrer"></img>
         </Menu.Button>
       </div>
       <Transition

@@ -9,6 +9,7 @@ interface Auth0ProviderConfigProps {
 export const AuthProvider = ({ children }: PropsWithChildren<Auth0ProviderConfigProps>): JSX.Element | null => {
   const domain = import.meta.env.VITE_DOMAIN;
   const clientId = import.meta.env.VITE_CLIENT_ID;
+  const audience = import.meta.env.VITE_AUDIENCE;
   const navigate = useNavigate();
   if (!(domain && clientId)) {
     return null;
@@ -24,6 +25,8 @@ export const AuthProvider = ({ children }: PropsWithChildren<Auth0ProviderConfig
       clientId={clientId}
       redirectUri={window.location.origin}
       onRedirectCallback={onRedirectCallback}
+      audience={audience}
+
     >
       <Outlet />
     </Auth0Provider>

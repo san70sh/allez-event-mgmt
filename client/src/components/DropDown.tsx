@@ -13,7 +13,6 @@ export const DropDown: React.FC<{ items: DropDownItem[]; label: string }> = ({ i
   const { setFieldValue } = useFormikContext();
   useEffect(() => {
     setFieldValue(label.toLowerCase(), selectedItem);
-    console.log(selectedItem);
   }, [selectedItem]);
   return (
     <div>

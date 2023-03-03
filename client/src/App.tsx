@@ -6,9 +6,10 @@ import Home from "./components/Home";
 import Navigation from "./components/Navigation";
 import UserProfile from "./components/UserProfile";
 import SignupForm from "./components/SignupForm";
-import LoginForm from "./components/LoginForm";
+import LoginForm from "./components/ProfileForm";
 import { useAuth0 } from "@auth0/auth0-react";
 import "./index.css";
+import NewEvent from "./components/NewEvent";
 
 const ProtectedRoute: React.FC = () => {
   const location = useLocation();
@@ -34,11 +35,11 @@ const router = createBrowserRouter([
                 path: "/user",
                 element: <UserProfile />,
               },
+              {
+                path: "/events/new",
+                element: <NewEvent />
+              }
             ],
-          },
-          {
-            path: "/login",
-            element: <LoginForm />,
           },
         ],
       },

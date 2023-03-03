@@ -3,6 +3,7 @@ import IEvent from "../models/events.model";
 import axios, { AxiosResponse } from "axios";
 import noImage from "../assets/noImage.jpg";
 import { Link } from "react-router-dom";
+import LoadingSpinner from "./Loading";
 
 const events: React.FC = () => {
   const [events, setEvents] = useState<IEvent[]>([]);
@@ -27,19 +28,12 @@ const events: React.FC = () => {
 
   if (loading) {
     return (
-      <div>
-        <h1>Loading...</h1>
+      <div className="flex justify-center mx-auto">
+        <LoadingSpinner width="12" height="12"/>
+
       </div>
     );
   }
-
-  // if(events.length == 0 && !loading) {
-  //     return (
-  //         <div>
-  //             <h1>No events found</h1>
-  //         </div>
-  //     )
-  // }
 
   const eventCard = (event: IEvent): JSX.Element => {
     let imgSrc = event.eventImgs.length > 0 ? event.eventImgs[0] : noImage;

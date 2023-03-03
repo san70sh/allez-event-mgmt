@@ -1,5 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect } from "react";
+import LoadingSpinner from "./Loading";
 
 const Auth: React.FC = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
@@ -9,7 +10,7 @@ const Auth: React.FC = () => {
       loginWithRedirect();
     }
   }, [loginWithRedirect, isAuthenticated]);
-  return <div>Loading...</div>;
+  return <LoadingSpinner width="12" height="12"/>
 };
 
 export default Auth;
