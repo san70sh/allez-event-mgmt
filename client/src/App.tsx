@@ -37,7 +37,7 @@ const router = createBrowserRouter([
               },
               {
                 path: "/events/new",
-                element: <NewEvent />
+                element: <NewEvent type={0} />
               }
             ],
           },

@@ -94,7 +94,7 @@ const eventSchema = yup.object().shape({
 	}),
 });
 
-const NewEvent = (): JSX.Element => {
+const NewEvent = ({type}: EventProps): JSX.Element => {
 	const [isCalendarOpen, setIsCalendarOpen] = React.useState<boolean>(false);
 	const [venueLoc, setVenueLoc] = React.useState<string>("");
 	const [startTime, setStartTime] = React.useState<dayjs.Dayjs | undefined>(undefined);

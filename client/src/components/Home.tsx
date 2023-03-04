@@ -39,13 +39,13 @@ const events: React.FC = () => {
     let imgSrc = event.eventImgs.length > 0 ? event.eventImgs[0] : noImage;
     return (
       <div
-        className="max-w-sm rounded-sm overflow-hidden shadow-md hover:scale-110 hover:duration-150 duration-150"
+        className="max-w-sm rounded-xl overflow-hidden shadow-md hover:scale-110 hover:duration-150 duration-150"
         key={event._id}
       >
         <Link to={`events/${event._id}`}>
-          <div className="px-6 py-4">
-            <img src={imgSrc} sizes="small"/>
-            <div className="font-bold text-xl mb-2">{event.name}</div>
+          <div className="relative px-6 py-4 text-center">
+            <img src={imgSrc} sizes="small" className="relative mx-auto"/>
+            <div className="font-bold text-xl my-2">{event.name}</div>
             <p className="text-gray-700 text-base font-semibold">
               {event.venue.city}, {event.venue.state}
             </p>
@@ -79,7 +79,7 @@ const events: React.FC = () => {
         <button className="px-4 mx-32 rounded-sm col-start-4 col-end-7 border-2">Going</button>
         <button className="px-4 py-2 mx-32 rounded-sm col-start-7 col-end-9 border-2">Saved</button>
       </div>
-      <div className="mt-5">{card}</div>
+      <div className="mt-5 mx-5 grid grid-flow-col">{card}</div>
     </div>
   );
 };
