@@ -24,6 +24,6 @@ export default interface IEvent {
         country: string,
         geoLocation: {lat: number, long: number}
     },
-    eventTimeStamp: string
+    eventDate: string
 
 }

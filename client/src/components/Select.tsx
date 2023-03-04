@@ -57,7 +57,7 @@ const Select = ({ isLoaded, setFunction }: SelectProps): JSX.Element => {
 	};
 
 	return (
-		<div className="space-x-16 p-2">
+		<div className="relative space-x-16 p-2">
 			<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.venue?.address && touched.venue?.address ? `border-red-500` : ""} `}>
 				<Field name="venue.address" value={venueVal} placeholder="Select a venue" onChange={(e: ChangeEvent<HTMLInputElement>) => {setVenueVal(e.target.value)}} className="block p-2 rounded-lg w-full text-sm placeholder:italic appearance-none focus:outline-none bg-transparent"></Field>
 				{status && (
@@ -66,7 +66,7 @@ const Select = ({ isLoaded, setFunction }: SelectProps): JSX.Element => {
 					</ul>
 				)}
 			</div>
-			<ErrorMessage name="venue.address">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
+			<ErrorMessage name="venue.address">{(msg) => <div className="relative px-2 text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 		</div>
 	);
 };

@@ -1,4 +1,4 @@
-import express from "express";
+// import express from "express";
 import { expressjwt, GetVerificationKey } from "express-jwt";
 import jwksRsa from "jwks-rsa"
 
@@ -14,5 +14,5 @@ export const checkJwt = expressjwt({
     algorithms: ['RS256']
 })
 
-export const extractData = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-}
+// export const extractData = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+// }

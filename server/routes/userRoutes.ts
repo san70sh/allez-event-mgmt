@@ -97,7 +97,7 @@ router.post("/signup", checkJwt, async (req: JWTRequest, res: express.Response) 
   }
 });
 
-router.put("/", async (req: JWTRequest, res: express.Response) => {
+router.put("/",checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { body, auth } = req;
     const { user } = body;
@@ -144,10 +144,9 @@ router.put("/", async (req: JWTRequest, res: express.Response) => {
 router.get("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
-    console.log("Test")
     if (auth && auth.sub) {
-      console.log("Test2")
-      let getUserDetails = await users.getUserById(auth.sub);
+      let authId: string = auth.sub.split("|")[1];
+      let getUserDetails = await users.getUserById(authId);
       return res.status(200).send(getUserDetails);
 
     }
@@ -169,7 +168,7 @@ router.get("/hostedEvents", checkJwt, async (req: JWTRequest, res: express.Respo
   }
 });
 
-router.get("/cohostedEvents", async (req: JWTRequest, res: express.Response) => {
+router.get("/cohostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
     if (auth && auth.sub) {
@@ -193,7 +192,7 @@ router.get("/registeredEvents", checkJwt, async (req: JWTRequest, res: express.R
   }
 });
 
-router.delete("/", async (req: JWTRequest, res: express.Response) => {
+router.delete("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
     if (auth && auth.sub) {

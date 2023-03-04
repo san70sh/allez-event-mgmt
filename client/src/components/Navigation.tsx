@@ -29,14 +29,17 @@ const events = () => {
 					.catch((err: Error | AxiosError) => {
 						console.log(err);
 					});
+					console.log(user)
 				if (!user) {
 					setIsProfilePresent(false);
 					setOpenProfileForm(true);
+				} else {
+					setIsProfilePresent(true);
 				}
 			}
 		}
 		getUser();
-	}, [isAuthenticated]);
+	}, [isAuthenticated, openProfileForm]);
 
 	useEffect(() => {
 		if (isAuthenticated && !isProfilePresent) {

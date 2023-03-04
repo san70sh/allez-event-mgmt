@@ -13,11 +13,11 @@ export interface TextInputProps {
 export interface EventValues {
 	// eventImgs: string[];
 	name: string;
-	// category: string[];
-	// price: number;
+	category: string[];
+	price: number;
 	description: string;
-	// totalSeats: number;
-	// minAge: number;
+	totalSeats: number;
+	minAge: number;
 	venue: {
 		address: string | undefined;
 		// city: string;
