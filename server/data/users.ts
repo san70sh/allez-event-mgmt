@@ -6,19 +6,25 @@ import { ObjectId, UpdateResult, WithoutId } from "mongodb";
 import IEvent from "../models/events.model";
 
 const userValidationSchema: joi.ObjectSchema = joi.object({
-  name: joi
+  firstName: joi
     .string()
-    .pattern(/^[a-z ,.'-]+$/i)
-    .min(6)
+    .pattern(/^[a-z]+$/i)
+    .min(1)
+    .required(),
+  lastName: joi
+    .string()
+    .pattern(/^[a-z]+$/i)
+    .min(1)
     .required(),
   gender: joi
     .string()
-    .pattern(/^(?:m|M|male|Male|f|F|female|Female)$/)
+    .pattern(/^(?:Male|Female|Other)$/)
     .required(),
   email: joi
     .string()
     .pattern(/[a-z0-9]+@[a-z]+\.[a-z]{2,3}/)
     .required(),
+  authId: joi.string().required(),
   phone: joi.number().required(),
   address: {
     postal_code: joi.number().required(),
@@ -52,7 +58,7 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 
   if (id && !ObjectId.isValid(id)) {
     let err: ErrorWithStatus = {
-      message: "Invalid User ID",
+      message: "Invalid ID",
       status: 400,
     };
     throw err;
@@ -60,77 +66,20 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 }
 
 async function createUser(person: IUser): Promise<IUser> {
-  // if (
-  //   typeof person.name != "string" ||
-  //   typeof person.gender != "string" ||
-  //   typeof person.email != "string" ||
-  //   typeof person.address.city != "string" ||
-  //   typeof person.address.state != "string" ||
-  //   typeof person.address.postal_code != "string" ||
-  //   typeof person.address.country != "string"
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Registration Details Not In String Format",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
-  // if (
-  //   !person.name.trim() ||
-  //   !person.gender.trim() ||
-  //   !person.email.trim() ||
-  //   !person.address.city.trim() ||
-  //   !person.address.state.trim() ||
-  //   !person.address.postal_code ||
-  //   !person.address.country.trim()
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Registration Details Might Be Empty Strings",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
-  // if (isNaN(Number(person.phone))) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Phone Number Is Not Number",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-  // if (isNaN(Number(person.address.postal_code))) {
-  //   let error: ErrorWithStatus = {
-  //     message: "ZIP Is Not Number",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-  // if (
-  //   !isNaN(Number(person.name)) ||
-  //   !isNaN(Number(person.address.city)) ||
-  //   !isNaN(Number(person.address.state)) ||
-  //   !isNaN(Number(person.address.country)) ||
-  //   !isNaN(Number(person.gender)) ||
-  //   !isNaN(Number(person.email))
-  // ) {
-  //   let error: ErrorWithStatus = {
-  //     message: "Any Detail Of The User Might Be A Number Which Require To Be A String",
-  //     status: 400,
-  //   };
-  //   throw error;
-  // }
-
   await userValidationSchema.validateAsync(person);
+  let pId = person.authId.split("|")
 
   let newUser: IUser = {
-    name: person.name.trim(),
+    _id: new ObjectId(pId[1]),
+    firstName: person.firstName.trim(),
+    lastName: person.lastName.trim(),
     address: {
       city: person.address.city.trim(),
       state: person.address.state.trim(),
       postal_code: person.address.postal_code,
       country: person.address.country.trim(),
     },
+    authId: person.authId,
     phone: Number(person.phone),
     gender: person.gender.trim(),
     email: person.email.trim(),
@@ -152,7 +101,7 @@ async function createUser(person: IUser): Promise<IUser> {
       throw err;
     } else {
       if (insertedUser?.insertedId) {
-        return getUserById(insertedUser?.insertedId.toString());
+        return getUserById(pId[1]);
       } else {
         let err: ErrorWithStatus = {
           message: "Unable to retrieve userId",
@@ -170,13 +119,10 @@ async function createUser(person: IUser): Promise<IUser> {
   }
 }
 
-async function getUserById(insertedId: string): Promise<IUser> {
-  validityCheck(insertedId, undefined);
-
+async function getUserById(authId: string): Promise<IUser> {
+  validityCheck(authId, undefined);
   await users();
-  let queryId: ObjectId = new ObjectId(insertedId);
-
-  let user: IUser | null | undefined = await collections.users?.findOne({ _id: queryId });
+  let user: IUser | null | undefined = await collections.users?.findOne({ _id: new ObjectId(authId) });
 
   if (!user) {
     let err: ErrorWithStatus = {
@@ -185,7 +131,6 @@ async function getUserById(insertedId: string): Promise<IUser> {
     };
     throw err;
   }
-
   user._id = user._id?.toString();
   return user;
 }
@@ -194,13 +139,15 @@ async function modifyUser(person: IUser): Promise<IUser> {
   await userValidationSchema.validateAsync(person);
 
   let modifiedUser: IUser = {
-    name: person.name.trim(),
+    firstName: person.firstName.trim(),
+    lastName: person.lastName.trim(),
     address: {
       city: person.address.city.trim(),
       state: person.address.state.trim(),
       postal_code: person.address.postal_code,
       country: person.address.country.trim(),
     },
+    authId: person.authId,
     phone: Number(person.phone),
     gender: person.gender.trim(),
     email: person.email.trim(),
@@ -210,14 +157,18 @@ async function modifyUser(person: IUser): Promise<IUser> {
     attendEventArray: person.attendEventArray,
   };
 
+  let authSplit: string[] = person.authId.split("|");
+  let pId: ObjectId = new ObjectId(authSplit[1]);
+
   await users();
-  let existingUser: IUser | null | undefined = await collections.users?.findOne({ email: modifiedUser.email });
+  let existingUser: IUser | null | undefined = await collections.users?.findOne({ _id: pId });
   if (existingUser) {
     let updatedUser = await collections.users?.updateOne(
       { _id: existingUser._id },
       {
         $set: {
-          name: modifiedUser.name,
+          firstName: modifiedUser.firstName,
+          lastName: modifiedUser.lastName,
           address: modifiedUser.address,
           phone: modifiedUser.phone,
           dateOfBirth: modifiedUser.dateOfBirth,
@@ -233,7 +184,7 @@ async function modifyUser(person: IUser): Promise<IUser> {
       };
       throw err;
     } else {
-      return getUserById(existingUser._id?.toString()!);
+      return getUserById(pId.toString());
     }
   } else {
     let err: ErrorWithStatus = {
@@ -244,9 +195,9 @@ async function modifyUser(person: IUser): Promise<IUser> {
   }
 }
 
-async function deleteUser(id: string): Promise<{deleted: Boolean}> {
+async function deleteUser(authId: string): Promise<{ deleted: Boolean }> {
+  let id: string = authId.split("|")[1];
   validityCheck(id, undefined);
-
   let queryId: ObjectId = new ObjectId(id);
   await users();
   let existingUser: IUser | null | undefined = await collections.users?.findOne({ _id: queryId });
@@ -273,15 +224,16 @@ async function deleteUser(id: string): Promise<{deleted: Boolean}> {
   }
 }
 
-async function addRegisteredEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
+async function addRegisteredEvents(auth: string, eventId: string): Promise<IUser> {
 
-  let queryId: ObjectId = new ObjectId(id);
+  validityCheck(auth, eventId);
+
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  if (user) {
     let registeredUser: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -289,8 +241,8 @@ async function addRegisteredEvents(id: string, eventId: string): Promise<IUser> 
         attendEventArray: eventId
       }
     });
-    if(registeredUser && registeredUser.modifiedCount == 1 ) {
-      return getUserById(id);
+    if (registeredUser && registeredUser.modifiedCount == 1) {
+      return getUserById(auth);
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to register user in event",
@@ -307,15 +259,15 @@ async function addRegisteredEvents(id: string, eventId: string): Promise<IUser> 
   }
 }
 
-async function removeRegisteredEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
+async function removeRegisteredEvents(auth: string, eventId: string): Promise<IUser> {
+  validityCheck(auth, eventId);
 
-  let queryId: ObjectId = new ObjectId(id);
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  if (user) {
     let unregisteredUser: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -323,8 +275,8 @@ async function removeRegisteredEvents(id: string, eventId: string): Promise<IUse
         attendEventArray: eventId
       }
     });
-    if(unregisteredUser && unregisteredUser.modifiedCount == 1 ) {
-      return getUserById(id);
+    if (unregisteredUser && unregisteredUser.modifiedCount == 1) {
+      return getUserById(auth);
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to remove user from event",
@@ -338,18 +290,19 @@ async function removeRegisteredEvents(id: string, eventId: string): Promise<IUse
       status: 404,
     };
     throw err;
-  }  
+  }
 }
 
-async function addHostedEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
-
-  let queryId: ObjectId = new ObjectId(id);
+async function addHostedEvents(auth: string, eventId: string): Promise<IUser> {
+  validityCheck(auth, eventId);
+  console.log(auth)
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  console.log(user)
+  if (user) {
     let registeredUser: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -357,9 +310,9 @@ async function addHostedEvents(id: string, eventId: string): Promise<IUser> {
         hostEventArray: eventId
       }
     });
-    
-    if(registeredUser && registeredUser.modifiedCount == 1 ) {
-      let user: IUser = await getUserById(id);
+
+    if (registeredUser && registeredUser.modifiedCount == 1) {
+      let user: IUser = await getUserById(auth);
       return user;
     } else {
       let err: ErrorWithStatus = {
@@ -377,15 +330,15 @@ async function addHostedEvents(id: string, eventId: string): Promise<IUser> {
   }
 }
 
-async function removeHostedEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
+async function removeHostedEvents(auth: string, eventId: string): Promise<IUser> {
+  validityCheck(auth, eventId);
 
-  let queryId: ObjectId = new ObjectId(id);
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  if (user) {
     let removeHost: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -393,8 +346,8 @@ async function removeHostedEvents(id: string, eventId: string): Promise<IUser> {
         hostEventArray: eventId
       }
     });
-    if(removeHost && removeHost.modifiedCount == 1 ) {
-      return getUserById(id);
+    if (removeHost && removeHost.modifiedCount == 1) {
+      return getUserById(auth);
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to remove host from event",
@@ -408,18 +361,18 @@ async function removeHostedEvents(id: string, eventId: string): Promise<IUser> {
       status: 404,
     };
     throw err;
-  }  
+  }
 }
 
-async function addCohostedEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
+async function addCohostedEvents(auth: string, eventId: string): Promise<IUser> {
+  validityCheck(auth, eventId);
 
-  let queryId: ObjectId = new ObjectId(id);
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  if (user) {
     let registeredUser: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -427,8 +380,8 @@ async function addCohostedEvents(id: string, eventId: string): Promise<IUser> {
         cohostEventArray: eventId
       }
     });
-    if(registeredUser && registeredUser.modifiedCount == 1 ) {
-      return getUserById(id);
+    if (registeredUser && registeredUser.modifiedCount == 1) {
+      return getUserById(auth);
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to add user as cohost in event",
@@ -445,15 +398,15 @@ async function addCohostedEvents(id: string, eventId: string): Promise<IUser> {
   }
 }
 
-async function removeCohostedEvents(id: string, eventId: string): Promise<IUser> {
-  validityCheck(id, eventId);
+async function removeCohostedEvents(auth: string, eventId: string): Promise<IUser> {
+  validityCheck(auth, eventId);
 
-  let queryId: ObjectId = new ObjectId(id);
+  let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  if(user) {
+  if (user) {
     let removeHost: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId
     }, {
@@ -461,8 +414,8 @@ async function removeCohostedEvents(id: string, eventId: string): Promise<IUser>
         cohostEventArray: eventId
       }
     });
-    if(removeHost && removeHost.modifiedCount == 1 ) {
-      return getUserById(id);
+    if (removeHost && removeHost.modifiedCount == 1) {
+      return getUserById(auth);
     } else {
       let err: ErrorWithStatus = {
         message: "Unable to remove cohost from event",
@@ -476,7 +429,7 @@ async function removeCohostedEvents(id: string, eventId: string): Promise<IUser>
       status: 404,
     };
     throw err;
-  } 
+  }
 }
 
 async function getRegisteredEvents(id: string): Promise<{ events: IEvent[]; count: Number }> {

@@ -1,7 +1,6 @@
 import joi from "joi";
-import { Document, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { collections, events } from "../config/mongoCollections";
-// import { ObjectId } from "mongoose";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 import users from "./users";
@@ -38,7 +37,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   attendeesArr: joi.array(),
   description: joi.string().required(),
   price: joi.number().required().min(0),
-  eventTimeStamp: joi.date().required().greater("now"),
+  eventDate: joi.date().required().greater("now"),
 });
 
 const validityCheck = (id: string | undefined, eventId: string | undefined) => {
@@ -61,8 +60,8 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 
 async function createEvent(eventDetails: IEvent): Promise<IEvent> {
   await eventValidationSchema.validateAsync(eventDetails);
-
-  validityCheck(eventDetails.hostId, undefined);
+  let authId: string = eventDetails.hostId.split("|")[1];
+  validityCheck(authId, undefined);
 
   let newEvent: IEvent = {
     name: eventDetails.name.trim(),
@@ -83,7 +82,7 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     price: eventDetails.price,
     description: eventDetails.description,
     eventImgs: eventDetails.eventImgs,
-    eventTimeStamp: eventDetails.eventTimeStamp,
+    eventDate: eventDetails.eventDate,
     totalSeats: eventDetails.totalSeats,
     bookedSeats: eventDetails.bookedSeats,
     cohostArr: eventDetails.cohostArr,
@@ -111,7 +110,8 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
       throw err;
     } else {
       if (insertedEvent?.insertedId) {
-        let updatedUser = await users.addHostedEvents(newEvent.hostId, insertedEvent.insertedId.toString());
+        let authId: string = newEvent.hostId.split("|")[1];
+        let updatedUser = await users.addHostedEvents(authId, insertedEvent.insertedId.toString());
         if (updatedUser) {
           return getEventById(insertedEvent?.insertedId.toString());
         } else {
@@ -183,7 +183,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     price: eventDetails.price,
     description: eventDetails.description,
     eventImgs: eventDetails.eventImgs,
-    eventTimeStamp: eventDetails.eventTimeStamp,
+    eventDate: eventDetails.eventDate,
     totalSeats: eventDetails.totalSeats,
     bookedSeats: eventDetails.bookedSeats,
     cohostArr: eventDetails.cohostArr,
@@ -213,7 +213,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
             totalSeats: modifiedEvent.totalSeats,
             price: modifiedEvent.price,
             description: modifiedEvent.description,
-            eventTimeStamp: modifiedEvent.eventTimeStamp,
+            eventDate: modifiedEvent.eventDate,
           },
         }
       );
@@ -270,7 +270,7 @@ async function deleteEvent(eventId: string, hostId: string): Promise<{ deleted: 
   }
 }
 
-async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: Number }> {
+async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: number }> {
   await events();
   let allEvents = await collections.events?.find().toArray();
   if (allEvents && allEvents.length > 0) {

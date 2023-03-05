@@ -1,10 +1,9 @@
-import {ObjectId} from "mongodb";
-
 export default interface IUser {
-    _id?: ObjectId | string,
+    _id?: string,
     firstName: string,
     lastName: string,
-    authId: string,
+    authenticator: string,
+    userId: string,
     address: {
         city: string,
         state: string,

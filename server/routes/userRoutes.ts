@@ -4,32 +4,33 @@ import xss from "xss";
 import users from "../data/users";
 import { ErrorWithStatus } from "../types/global";
 import joi from "joi";
-import { ObjectId } from "mongodb";
+// import jwtAuthz from "express-jwt-authz";
+import { checkJwt } from "../auth/auth";
+import { Request as JWTRequest } from "express-jwt";
+
 
 const router = express.Router();
 
-const loginSchema = joi.object({
-  email: joi
-    .string()
-    .pattern(/[a-z0-9]+@[a-z]+\.[a-z]{2,3}/)
-    .required(),
-  password: joi.string().required().min(8).pattern(/[\x20-\x7E]+/),
-});
-
 const userValidationSchema = joi.object({
-  name: joi
+  firstName: joi
     .string()
-    .pattern(/^[a-z ,.'-]+$/i)
-    .min(6)
+    .pattern(/^[a-z]+$/i)
+    .min(1)
+    .required(),
+  lastName: joi
+    .string()
+    .pattern(/^[a-z]+$/i)
+    .min(1)
     .required(),
   gender: joi
     .string()
-    .pattern(/^(?:m|M|male|Male|f|F|female|Female)$/)
+    .pattern(/^(?:Male|Female|Other)$/)
     .required(),
   email: joi
     .string()
     .pattern(/[a-z0-9]+@[a-z]+\.[a-z]{2,3}/)
     .required(),
+  authId: joi.string().required(),
   phone: joi
     .string()
     .length(10)
@@ -52,57 +53,36 @@ const userValidationSchema = joi.object({
   attendEventArray: joi.optional(),
 });
 
-// router.get("/logout", async (req, res) => {
-//   try {
-//     req.session.destroy((err) => {
-//       if (err) {
-//         let e: ErrorWithStatus = {
-//           message: `Logout Failed`,
-//           status: 500,
-//         };
-//         return res.status(e.status).send(`${e.message}: ${err}`);
-//       }
-//     });
-//     return return res.status(200).send({ logout: true });
-//   } catch (e) {
-//     return return res.status(500).send({ logout: false, result: e });
-//   }
-// });
-
-router.post("/signup", async (req: express.Request, res: express.Response) => {
+router.post("/signup", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    let { user, password } = req.body;
+    const { body, auth } = req;
+    const { user } = body;
     await userValidationSchema.validateAsync(user);
 
-    if (!password || password.trim().length == 0) {
-      let err: ErrorWithStatus = {
-        message: "Please enter a valid password",
-        status: 400,
+    if (auth && auth.sub) {
+      let newUser: IUser = {
+        firstName: xss(user.firstName.trim()),
+        lastName: xss(user.lastName.trim()),
+        address: {
+          city: xss(user.address.city.trim()),
+          state: xss(user.address.state.trim()),
+          postal_code: Number(xss(user.address.postal_code)),
+          country: xss(user.address.country.trim()),
+        },
+        authId: xss(auth?.sub),
+        phone: Number(xss(user.phone)),
+        gender: xss(user.gender.trim()),
+        email: xss(user.email.trim().toLowerCase()),
+        dateOfBirth: xss(user.dateOfBirth),
+        hostEventArray: [],
+        cohostEventArray: [],
+        attendEventArray: [],
       };
-      return res.status(err.status).send(err.message);
-    }
 
-    let newUser: IUser = {
-      name: xss(user.name.trim()),
-      address: {
-        city: xss(user.address.city.trim()),
-        state: xss(user.address.state.trim()),
-        postal_code: Number(xss(user.address.postal_code)),
-        country: xss(user.address.country.trim()),
-      },
-      phone: Number(xss(user.phone)),
-      gender: xss(user.gender.trim()),
-      email: xss(user.email.trim().toLowerCase()),
-      dateOfBirth: xss(user.dateOfBirth),
-      hostEventArray: [],
-      cohostEventArray: [],
-      attendEventArray: [],
-    };
-
-    let createdUser: IUser | undefined = await users.createUser(newUser);
-    if (createdUser) {
-      // req.session.userId = createdUser._id?.toString();
-      return res.status(200).send(createdUser);
+      let createdUser: IUser | undefined = await users.createUser(newUser);
+      if (createdUser) {
+        return res.status(200).send(createdUser);
+      }
     }
   } catch (e: any) {
     console.log("L177: ", e);
@@ -117,35 +97,37 @@ router.post("/signup", async (req: express.Request, res: express.Response) => {
   }
 });
 
-router.put("/", async (req: express.Request, res: express.Response) => {
+router.put("/",checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   return res.status(403).send("User not logged in");
-    // }
-
-    let user = req.body;
+    const { body, auth } = req;
+    const { user } = body;
     await userValidationSchema.validateAsync(user);
 
-    let modifiedUser: IUser = {
-      name: xss(user.name.trim()),
-      address: {
-        city: xss(user.address.city.trim()),
-        state: xss(user.address.state.trim()),
-        postal_code: Number(xss(user.address.postal_code)),
-        country: xss(user.address.country.trim()),
-      },
-      phone: Number(xss(user.phone)),
-      gender: xss(user.gender.trim()),
-      email: xss(user.email.trim().toLowerCase()),
-      dateOfBirth: xss(user.dateOfBirth),
-      hostEventArray: user.hostEventArray,
-      cohostEventArray: user.cohostEventArray,
-      attendEventArray: user.attendEventArray,
-    };
+    if (auth && auth.sub) {
+      let modifiedUser: IUser = {
+        firstName: xss(user.firstName.trim()),
+        lastName: xss(user.lastName.trim()),
+        address: {
+          city: xss(user.address.city.trim()),
+          state: xss(user.address.state.trim()),
+          postal_code: Number(xss(user.address.postal_code)),
+          country: xss(user.address.country.trim()),
+        },
+        authId: xss(auth.sub),
+        phone: Number(xss(user.phone)),
+        gender: xss(user.gender.trim()),
+        email: xss(user.email.trim().toLowerCase()),
+        dateOfBirth: xss(user.dateOfBirth),
+        hostEventArray: user.hostEventArray,
+        cohostEventArray: user.cohostEventArray,
+        attendEventArray: user.attendEventArray,
+      };
 
-    let updatedUser: IUser | undefined = await users.modifyUser(modifiedUser);
-    if (updatedUser) {
-      return res.status(200).send(updatedUser);
+      let updatedUser: IUser | undefined = await users.modifyUser(modifiedUser);
+      if (updatedUser) {
+        return res.status(200).send(updatedUser);
+      }
+
     }
   } catch (e: any) {
     if (e.isJoi) {
@@ -159,134 +141,64 @@ router.put("/", async (req: express.Request, res: express.Response) => {
   }
 });
 
-// router.post("/login", async(req, res) => {
-//   try {
-//     let reqBody = req.body;
-//     await loginSchema.validateAsync(reqBody);
-
-//   } catch(e: any) {
-//     if(e.isJoi) {
-//       let err: ErrorWithStatus = {
-//         message: `${e.details[0].message}`,
-//         status: 400,
-//       };
-//       return res.status(err.status).send(err.message);
-//     }
-//     return res.status(e.status).send(e.message);
-//   }
-// })
-
-router.route("/:userId").get( async (req, res) => {
+router.get("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    if (!ObjectId.isValid(req.params.userId.toString())) {
-      let err: ErrorWithStatus = {
-        message: "Bad Parameters, Invalid user ID",
-        status: 400,
-      };
-      return res.status(err.status).send(err.message);
+    const { auth } = req;
+    if (auth && auth.sub) {
+      let authId: string = auth.sub.split("|")[1];
+      let getUserDetails = await users.getUserById(authId);
+      return res.status(200).send(getUserDetails);
+
     }
-    let id: string = xss(req.params.userId);
-    let getUserDetails = await users.getUserById(id);
-    return res.status(200).send(getUserDetails);
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/hostedEvents/:userId", async (req, res) => {
+router.get("/hostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   return res.status(403).send("User not logged in");
-    // } else {
-      // if (!ObjectId.isValid(req.session.userId)) {
-        if (!ObjectId.isValid(req.params.userId)) {
-        let err: ErrorWithStatus = {
-          message: "Bad Parameters, Invalid user ID",
-          status: 400,
-        };
-        return res.status(err.status).send(err.message);
-      }
-      // let id: string = xss(req.session.userId);
-      let id: string = xss(req.params.userId);
-      let getUserHostedEvents = await users.getHostedEvents(id);
+    const { auth } = req;
+    if (auth && auth.sub) {
+      let getUserHostedEvents = await users.getHostedEvents(auth.sub);
       return res.status(200).send(getUserHostedEvents);
-    // }
+
+    }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/cohostedEvents/:userId", async (req, res) => {
+router.get("/cohostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   return res.status(403).send("User not logged in");
-    // } else {
-      // if (!ObjectId.isValid(req.session.userId)) {
-        if (!ObjectId.isValid(req.params.userId)) {
-        let err: ErrorWithStatus = {
-          message: "Bad Parameters, Invalid user ID",
-          status: 400,
-        };
-        return res.status(err.status).send(err.message);
-      }
-      // let id: string = xss(req.session.userId);
-      let id: string = xss(req.params.userId);
-      let getUserCohostedEvents = await users.getCohostedEvents(id);
+    const { auth } = req;
+    if (auth && auth.sub) {
+      let getUserCohostedEvents = await users.getCohostedEvents(auth.sub);
       return res.status(200).send(getUserCohostedEvents);
-    // }
+    }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
 });
 
-router.get("/registeredEvents/:userId", async (req, res) => {
+router.get("/registeredEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   return res.status(403).send("User not logged in");
-    // } else {
-    //   if (!ObjectId.isValid(req.session.userId)) {
-      if (!ObjectId.isValid(req.params.userId)) {
-        let err: ErrorWithStatus = {
-          message: "Bad Parameters, Invalid user ID",
-          status: 400,
-        };
-        return res.status(err.status).send(err.message);
-      }
-      // let id: string = xss(req.session.userId);
-      let id: string = xss(req.params.userId);
-      let getUserRegisteredEvents = await users.getRegisteredEvents(id);
+    const { auth } = req;
+    if (auth && auth.sub) {
+      let getUserRegisteredEvents = await users.getRegisteredEvents(auth.sub);
       return res.status(200).send(getUserRegisteredEvents);
-    // }
+    }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
 });
 
-router.delete("/:userId", async (req, res) => {
+router.delete("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
-    // if (!req.session.userId) {
-    //   return res.status(403).send("User not logged in");
-    // } else {
-    //   if (!ObjectId.isValid(req.session.userId)) {
-      if (!ObjectId.isValid(req.params.userId)) {
-        let err: ErrorWithStatus = {
-          message: "Bad Parameters, Invalid user ID",
-          status: 400,
-        };
-        return res.status(err.status).send(err.message);
-      }
-      // let id: string = xss(req.session.userId);
-      let id: string = xss(req.params.userId);
-      req.session.destroy((err) => {
-        let e: ErrorWithStatus = {
-          message: `Logout Failed`,
-          status: 500,
-        };
-        return res.status(e.status).send(`${e.message}: ${err}`);
-      });
-      let deleteUser = await users.deleteUser(id);
+    const { auth } = req;
+    if (auth && auth.sub) {
+      let deleteUser = await users.deleteUser(auth.sub);
       return res.status(200).send(deleteUser);
-    // }
+    }
   } catch (e: any) {
     return res.status(e.status).send(e.message);
   }
