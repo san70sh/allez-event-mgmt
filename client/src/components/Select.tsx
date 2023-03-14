@@ -1,8 +1,7 @@
-import { useJsApiLoader, LoadScriptProps } from "@react-google-maps/api";
-import usePlacesAutocomplete, { getGeocode, getLatLng, getZipCode } from "use-places-autocomplete";
+import usePlacesAutocomplete from "use-places-autocomplete";
 import { SelectProps, EventValues as Values } from "../types/global";
 import { ErrorMessage, Field, useFormikContext } from "formik";
-import React, { ChangeEvent } from "react";
+import { ChangeEvent } from "react";
 
 type Suggestion = google.maps.places.AutocompletePrediction;
 
@@ -58,7 +57,7 @@ const Select = ({ isLoaded, setFunction }: SelectProps): JSX.Element => {
 
 	return (
 		<div className="relative space-x-16 p-2">
-			<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.venue?.address && touched.venue?.address ? `border-red-500` : ""} `}>
+			<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.venue && touched.venue ? `border-red-500` : ""} `}>
 				<Field name="venue.address" value={venueVal} placeholder="Select a venue" onChange={(e: ChangeEvent<HTMLInputElement>) => {setVenueVal(e.target.value)}} className="block p-2 rounded-lg w-full text-sm placeholder:italic appearance-none focus:outline-none bg-transparent"></Field>
 				{status && (
 					<ul id="suggestionBox" role="listbox" className="bg-white rounded shadow-md">

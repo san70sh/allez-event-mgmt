@@ -1,5 +1,3 @@
-import React from "react";
-
 interface LoaderSizeProps {
     width: string,
     height: string

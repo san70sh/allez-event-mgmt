@@ -1,7 +1,7 @@
 import { Transition, Dialog } from "@headlessui/react";
 import { useFormikContext } from "formik";
-import { Dispatch, Fragment, RefCallback, SetStateAction } from "react";
-import { ClassNames, DayPicker, InputDayPickerProps } from "react-day-picker";
+import { Fragment } from "react";
+import { ClassNames, DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { ModalProps } from "../types/global";
 

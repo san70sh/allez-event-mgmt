@@ -1,37 +1,22 @@
 import React, { Dispatch, SetStateAction, useState } from "react";
-import { Formik, Form, Field, ErrorMessage, FormikHelpers, useFormikContext } from "formik";
+import { Formik, Form, Field, ErrorMessage, FormikHelpers } from "formik";
 import { useAuth0 } from "@auth0/auth0-react";
 import * as yup from "yup";
 import { DropDown } from "./DropDown";
 import { useInput } from "react-day-picker";
 import CalendarModal from "./Calendar";
 import LoadingSpinner from "./Loading";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
+import { TextInputProps, UserValues as Values } from "../types/global";
 
+enum actionType {
+	NEW,
+	EDIT,
+}
 interface ProfileFormProps {
-	setFunction: Dispatch<SetStateAction<boolean>>
-}
-
-interface Values {
-	firstName: string;
-	lastName: string;
-	gender: string;
-	phone: string;
-	address: {
-		city: string;
-		postal_code: string;
-		state: string;
-		country: string;
-	};
-	dateOfBirth: Date;
-}
-
-interface TextInputProps {
-	label: string;
-	name: string;
-	error: string | undefined;
-	touch: boolean | undefined;
-	className: string | undefined;
+	setFunction: Dispatch<SetStateAction<boolean>>;
+	action: actionType;
+	val: Values;
 }
 
 interface DropDownItem {
@@ -71,21 +56,11 @@ const profileSchema = yup.object().shape({
 	dateOfBirth: yup.date().required("Please select your birthdate").min("1900-1-1").max(new Date(), "No future dates pls"),
 });
 
-const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
+const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): JSX.Element => {
 	const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
-	let initVal: Values = {
-		firstName: "",
-		lastName: "",
-		gender: "",
-		phone: "",
-		address: {
-			postal_code: "",
-			city: "",
-			state: "",
-			country: "",
-		},
-		dateOfBirth: new Date(),
-	};
+	const [userData, setUserData] = useState<Values>();
+	const { user, getAccessTokenSilently } = useAuth0();
+	
 
 	let genderVal: DropDownItem[] = [
 		{
@@ -102,11 +77,12 @@ const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
 		},
 	];
 
-	const TextInput = ({ label, name, error, touch, className }: TextInputProps): JSX.Element => {
+
+	const TextInput = ({ label, name, error, touch, className, disableValue }: TextInputProps): JSX.Element => {
 		return (
 			<div className={className}>
 				<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${error && touch ? `border-red-500` : ""} `}>
-					<Field id={name} name={name} placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
+					<Field id={name} name={name} placeholder=" " disabled={disableValue} className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
 					<label htmlFor={name} className="absolute top-0 text-sm rounded-md bg-white p-2 m-2 origin-top-left">
 						{label}
 					</label>
@@ -116,15 +92,13 @@ const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
 		);
 	};
 
-
 	const { inputProps, dayPickerProps, setSelected } = useInput({
+		defaultSelected: initVal.dateOfBirth,
 		fromYear: 1900,
 		toYear: 2025,
 		format: "PP",
 		required: true,
 	});
-
-	const {user, getAccessTokenSilently} = useAuth0();
 
 	return (
 		<React.Fragment>
@@ -136,25 +110,35 @@ const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
 					initialValues={initVal}
 					validationSchema={profileSchema}
 					onSubmit={async (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
-						let token = await getAccessTokenSilently();
-						await axios.post("http://localhost:3000/users/signup", {user: {
-							...values,
-							email: user?.email,
-							authId: user?.sub
+						let token = await getAccessTokenSilently({
+							audience: "localhost:5173/api",
+							scope: "read:current_user",
+						});
+						if (action == 0) {
+							await axios.post(
+								"http://localhost:3000/users/signup",
+								{
+									user: {
+										...values,
+										email: user?.email,
+										authId: user?.sub,
+									},
+								},
+								{
+									withCredentials: true,
+									headers: {
+										Authorization: `Bearer ${token}`,
+									},
+								}
+							);
 						}
-					}, {
-							withCredentials: true,
-							headers: {
-								Authorization: `Bearer ${token}`
-							}
-						})
-						setFunction(false)
+						setFunction(false);
 					}}>
 					{({ errors, touched, isSubmitting }) => (
 						<Form className="max-w-3xl mx-auto rounded-lg shadow-xl overflow-hidden p-6 space-y-7">
 							<div className="relative px-2 grid grid-flow-col space-x-16">
-								<TextInput label={"First Name"} name={"firstName"} error={errors.firstName} touch={touched.firstName} className="" />
-								<TextInput label={"Last Name"} name={"lastName"} error={errors.lastName} touch={touched.lastName} className="" />
+								<TextInput label={"First Name"} name={"firstName"} error={errors.firstName} touch={touched.firstName} className="" disableValue={action == 1 ? true: false } />
+								<TextInput label={"Last Name"} name={"lastName"} error={errors.lastName} touch={touched.lastName} className="" disableValue={action == 1 ? true: false }/>
 							</div>
 							<div className="grid grid-cols-12 space-x-8 px-2">
 								<div className="relative col-span-5 col-start-1">
@@ -163,7 +147,7 @@ const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
 									</div>
 									<ErrorMessage name="gender">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 								</div>
-								<TextInput label={"Phone Number"} name={"phone"} error={errors.phone} touch={touched.phone} className="relative col-span-7" />
+								<TextInput label={"Phone Number"} name={"phone"} error={errors.phone} touch={touched.phone} className="relative col-span-7" disableValue={action == 1 ? true: false }/>
 							</div>
 							<div className="relative">
 								<label htmlFor="dateOfBirth" hidden>
@@ -186,17 +170,17 @@ const profileForm = ({setFunction}: ProfileFormProps): JSX.Element => {
 							<div className="border-2 border-gray-300 rounded" />
 							<div className="text-center">Address</div>
 							<div className="relative px-2 grid grid-flow-col space-x-16">
-								<TextInput label={"City"} name={"address.city"} error={errors.address?.city} touch={touched.address?.city} className="" />
-								<TextInput label={"State"} name={"address.state"} error={errors.address?.state} touch={touched.address?.state} className="" />
+								<TextInput label={"City"} name={"address.city"} error={errors.address?.city} touch={touched.address?.city} className="" disableValue={false}/>
+								<TextInput label={"State"} name={"address.state"} error={errors.address?.state} touch={touched.address?.state} className="" disableValue={false}/>
 							</div>
 							<div className="relative px-2 grid grid-flow-col space-x-16">
-								<TextInput label={"Country"} name={"address.country"} error={errors.address?.country} touch={touched.address?.country} className="" />
-								<TextInput label={"Zipcode"} name={"address.postal_code"} error={errors.address?.postal_code} touch={touched.address?.postal_code} className="" />
+								<TextInput label={"Country"} name={"address.country"} error={errors.address?.country} touch={touched.address?.country} className="" disableValue={false}/>
+								<TextInput label={"Zipcode"} name={"address.postal_code"} error={errors.address?.postal_code} touch={touched.address?.postal_code} className="" disableValue={false}/>
 							</div>
 							<div className="flex justify-center">
 								{isSubmitting ? (
 									<div className="flex justify-center border-2 border-orange-700 rounded p-2 w-32">
-										<LoadingSpinner width="6" height="6"/>
+										<LoadingSpinner width="6" height="6" />
 									</div>
 								) : (
 									<button type="submit" className="bg-orange-400 py-2 px-52 rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300 ">
