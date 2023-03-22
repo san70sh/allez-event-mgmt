@@ -1,5 +1,4 @@
 import React from "react";
-import IEvent from "../models/events.model";
 import { useInput } from "react-day-picker";
 import * as yup from "yup";
 import { ErrorMessage, Field, FieldProps, Form, Formik, FormikHelpers } from "formik";
@@ -10,34 +9,16 @@ import axios from "axios";
 import CalendarModal from "./Calendar";
 import LoadingSpinner from "./Loading";
 import dayjs from "dayjs";
-import { EventValues as Values } from "../types/global";
+import { ActionType, EventValues as Values } from "../types/global";
 import Select from "./Select";
 import { TimePicker, Select as CategorySelect, SelectProps } from "antd";
 import { useAuth0 } from "@auth0/auth0-react";
 import { useNavigate } from "react-router-dom";
 
-interface venue {
-	address: string;
-	city: string;
-	state: string;
-	geoLocation: {
-		lat: number;
-		long: number;
-	};
-}
-
 type LatLng = google.maps.LatLngLiteral;
 type GeocodeResult = google.maps.GeocoderResult[];
 const libraries: LoadScriptProps["libraries"] = ["places"];
 
-export enum EventType {
-	NEW,
-	EDIT,
-}
-
-type EventProps = {
-	type: EventType;
-};
 
 const categoryOpts: SelectProps["options"] = [
 	{ value: "Career", label: "Career" },
@@ -52,57 +33,39 @@ const categoryOpts: SelectProps["options"] = [
 	{ value: "Other", label: "Other" },
 ];
 
-
 const eventSchema = yup.object().shape({
 	name: yup.string().required("Please enter the event name").min(1),
 	price: yup
-	.string()
-	.required("Please enter 0 if it is a free event")
-	.min(0)
-	.max(999, "Events with prices > 1000 are not supported")
-	.test("number", "Please enter a numeric value", (val) => !isNaN(parseInt(val!))),
+		.string()
+		.required("Please enter 0 if it is a free event")
+		.min(0)
+		.max(999, "Events with prices > 1000 are not supported")
+		.test("number", "Please enter a numeric value", (val) => !isNaN(parseInt(val!))),
 	description: yup.string(),
 	totalSeats: yup.number().required().min(0),
 	minAge: yup.number().required().min(0),
 	category: yup.array().of(yup.string()).required().min(1),
-	venue: yup.object().shape({
-		address: yup
-		.string()
-		.matches(/^[a-z0-9 ,.'-]+$/i)
-		.required("Address Required"),
-		// city: yup
-		// 	.string()
-		// 	.matches(/^[a-z ,.'-]+$/i)
-		// 	.required("City Required"),
-		// state: yup
-		// 	.string()
-		// 	.matches(/^[a-z ,.'-]+$/i)
-		// 	.required("State Required"),
-		// country: yup
-		// 	.string()
-		// 	.matches(/^[a-z ,.'-]+$/i)
-		// 	.required("Country Required"),
-	}),
+	venue: yup.string().matches(/^[a-z0-9 ,.'-]+$/i).required("Address Required"),
 	eventDate: yup.date().required("Please select the date of the event").min(dayjs(new Date()).add(1, "day"), "Event must be after today"),
 	eventStartTime: yup.string().required("Enter start time"),
 	eventEndTime: yup
-	.string()
-	.required("Enter end time")
-	.test("min_end_time", "Enter atleast 30 minutes from start time", function (val) {
-		const { eventStartTime } = this.parent;
-		return dayjs(val, "HH:mm").isAfter(dayjs(eventStartTime, "HH:mm"));
-	}),
+		.string()
+		.required("Enter end time")
+		.test("min_end_time", "Enter atleast 30 minutes from start time", function (val) {
+			const { eventStartTime } = this.parent;
+			return dayjs(val, "h:mm A").isAfter(dayjs(eventStartTime, "h:mm A"));
+		}),
 });
 
-const NewEvent = ({type}: EventProps): JSX.Element => {
+const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
 	const [isCalendarOpen, setIsCalendarOpen] = React.useState<boolean>(false);
 	const [venueLoc, setVenueLoc] = React.useState<string>("");
 	const [startTime, setStartTime] = React.useState<dayjs.Dayjs | undefined>(undefined);
 	const [endTime, setEndTime] = React.useState<dayjs.Dayjs | undefined>(undefined);
-	const {user, getAccessTokenSilently} = useAuth0();
+	const { user, getAccessTokenSilently } = useAuth0();
 
 	const navigate = useNavigate();
-	
+
 	let initVal: Values = {
 		// eventImgs: [],
 		name: "",
@@ -111,13 +74,7 @@ const NewEvent = ({type}: EventProps): JSX.Element => {
 		description: "",
 		totalSeats: 0,
 		minAge: 0,
-		venue: {
-			address: undefined,
-			// city: "",
-			// state: "",
-			// country: "",
-			// geoLocation: { lat: 0, long: 0 },
-		},
+		venue: undefined,
 		eventDate: new Date(),
 		eventStartTime: "",
 		eventEndTime: "",
@@ -164,33 +121,38 @@ const NewEvent = ({type}: EventProps): JSX.Element => {
 							onSubmit={async (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
 								let { zipCode, venueCoord } = await getGCAndZip(venueLoc);
 								let completeAddress = venueLoc?.split(",");
-								let token = await getAccessTokenSilently();
-								let newEvent = await axios.post("http://localhost:3000/events/new", {
-									...values,
-									venue: {
-										address: completeAddress[0].trim(),
-										city: completeAddress[1].trim(),
-										state: completeAddress[2].trim(),
-										country: completeAddress[3].trim(),
-										zip: parseInt(zipCode),
-										geoLocation: {
-											lat: venueCoord.lat,
-											long: venueCoord.lng,
+								let token = await getAccessTokenSilently({
+									audience: "localhost:5173/api",
+									scope: "read:current_user",
+								});
+								let newEvent = await axios.post(
+									"http://localhost:3000/events/new",
+									{
+										...values,
+										venue: {
+											address: completeAddress[0].trim(),
+											city: completeAddress[1].trim(),
+											state: completeAddress[2].trim(),
+											country: completeAddress[3].trim(),
+											zip: parseInt(zipCode),
+											geoLocation: {
+												lat: venueCoord.lat,
+												long: venueCoord.lng,
+											},
 										},
+										hostId: user?.sub,
 									},
-									hostId: user?.sub
-								},{
-									withCredentials: true,
-									headers: {
-										Authorization: `Bearer ${token}`
+									{
+										withCredentials: true,
+										headers: {
+											Authorization: `Bearer ${token}`,
+										},
 									}
-								}
 								);
 
-								if(newEvent) {
-									navigate("/")
+								if (newEvent) {
+									navigate("/");
 								}
-								
 							}}>
 							{({ errors, touched, isSubmitting }) => (
 								<Form>

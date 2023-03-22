@@ -1,6 +1,6 @@
 import IUser from "../models/users.model";
 import { ErrorWithStatus } from "../types/global";
-import { collections, users } from "../config/mongoCollections";
+import { collections, events, users } from "../config/mongoCollections";
 import joi from "joi";
 import { ObjectId, UpdateResult, WithoutId } from "mongodb";
 import IEvent from "../models/events.model";
@@ -433,13 +433,7 @@ async function removeCohostedEvents(auth: string, eventId: string): Promise<IUse
 }
 
 async function getRegisteredEvents(id: string): Promise<{ events: IEvent[]; count: Number }> {
-  if (!ObjectId.isValid(id)) {
-    let err: ErrorWithStatus = {
-      message: "Invalid User ID",
-      status: 400,
-    };
-    throw err;
-  }
+  validityCheck(id, undefined);
 
   let queryId: ObjectId = new ObjectId(id);
   await users();
@@ -453,7 +447,7 @@ async function getRegisteredEvents(id: string): Promise<{ events: IEvent[]; coun
   );
 
   console.log(registeredDocs);
-  let eventArr: WithoutId<IEvent>[] | undefined = [];
+  let eventArr: IEvent[] | undefined = [];
 
   if (registeredDocs && registeredDocs.attendEventArray.length > 0) {
     let registeredEventIds: ObjectId[] = [];
@@ -463,10 +457,7 @@ async function getRegisteredEvents(id: string): Promise<{ events: IEvent[]; coun
     });
     eventArr = await collections.events
       ?.find(
-        { _id: { $in: registeredEventIds } },
-        {
-          projection: { _id: 0 },
-        }
+        { _id: { $in: registeredEventIds } }
       )
       .toArray();
   }
@@ -479,16 +470,14 @@ async function getRegisteredEvents(id: string): Promise<{ events: IEvent[]; coun
 }
 
 async function getHostedEvents(id: string): Promise<{ events: IEvent[]; count: Number }> {
-  if (!ObjectId.isValid(id)) {
-    let err: ErrorWithStatus = {
-      message: "Invalid User ID",
-      status: 400,
-    };
-    throw err;
-  }
+  validityCheck(id, undefined);
 
   let queryId: ObjectId = new ObjectId(id);
   await users();
+  
+  if (!collections.events) {
+    await events();
+  }
   let hostDocs: WithoutId<IUser> | null | undefined = await collections.users?.findOne(
     { _id: queryId },
     {
@@ -499,7 +488,7 @@ async function getHostedEvents(id: string): Promise<{ events: IEvent[]; count: N
   );
 
   console.log(hostDocs);
-  let eventArr: WithoutId<IEvent>[] | undefined = [];
+  let eventArr: IEvent[] | undefined = [];
 
   if (hostDocs && hostDocs.hostEventArray.length > 0) {
     let hostedEventIds: ObjectId[] = [];
@@ -509,10 +498,7 @@ async function getHostedEvents(id: string): Promise<{ events: IEvent[]; count: N
     });
     eventArr = await collections.events
       ?.find(
-        { _id: { $in: hostedEventIds } },
-        {
-          projection: { _id: 0 },
-        }
+        { _id: { $in: hostedEventIds } }
       )
       .toArray();
   }
@@ -525,13 +511,7 @@ async function getHostedEvents(id: string): Promise<{ events: IEvent[]; count: N
 }
 
 async function getCohostedEvents(id: string): Promise<{ events: IEvent[]; count: Number }> {
-  if (!ObjectId.isValid(id)) {
-    let err: ErrorWithStatus = {
-      message: "Invalid User ID",
-      status: 400,
-    };
-    throw err;
-  }
+  validityCheck(id, undefined);
 
   let queryId: ObjectId = new ObjectId(id);
   await users();
@@ -545,7 +525,7 @@ async function getCohostedEvents(id: string): Promise<{ events: IEvent[]; count:
   );
 
   console.log(cohostDocs);
-  let eventArr: WithoutId<IEvent>[] | undefined = [];
+  let eventArr: IEvent[] | undefined = [];
 
   if (cohostDocs && cohostDocs.cohostEventArray.length > 0) {
     let cohostedEventIds: ObjectId[] = [];
@@ -555,10 +535,7 @@ async function getCohostedEvents(id: string): Promise<{ events: IEvent[]; count:
     });
     eventArr = await collections.events
       ?.find(
-        { _id: { $in: cohostedEventIds } },
-        {
-          projection: { _id: 0 },
-        }
+        { _id: { $in: cohostedEventIds } }
       )
       .toArray();
   }

@@ -1,11 +1,27 @@
-import React, { useState, useEffect, Fragment } from "react";
-import { Link, Outlet, redirect, useNavigate } from "react-router-dom";
+import { useState, useEffect, Fragment } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import logo from "../assets/allez-dark.svg";
 import { useAuth0 } from "@auth0/auth0-react";
 import { ProfileDropDown, DropDownItem } from "./ProfileDropDown";
 import ProfileForm from "./ProfileForm";
 import { Dialog, Transition } from "@headlessui/react";
 import axios, { AxiosError } from "axios";
+import { UserValues as Values } from "../types/global";
+
+const initVal: Values = {
+	firstName: "",
+	lastName: "",
+	gender: "",
+	phone: "",
+	address: {
+		postal_code: "",
+		city: "",
+		state: "",
+		country: "",
+	},
+	dateOfBirth: new Date(),
+};
+
 
 const events = () => {
 	const { loginWithRedirect, logout, user, isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -19,7 +35,10 @@ const events = () => {
 	useEffect(() => {
 		async function getUser() {
 			if (isAuthenticated) {
-				const token = await getAccessTokenSilently();
+				const token = await getAccessTokenSilently({
+					audience: "localhost:5173/api",
+					scope: "read:current_user",
+				});
 				let user = await axios
 					.get("http://localhost:3000/users", {
 						headers: {
@@ -29,7 +48,6 @@ const events = () => {
 					.catch((err: Error | AxiosError) => {
 						console.log(err);
 					});
-					console.log(user)
 				if (!user) {
 					setIsProfilePresent(false);
 					setOpenProfileForm(true);
@@ -65,7 +83,7 @@ const events = () => {
 							<div className="flex min-h-full items-center justify-center p-4 text-center w-full">
 								<Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
 									<Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-										<ProfileForm setFunction={setOpenProfileForm} />
+										<ProfileForm setFunction={setOpenProfileForm} action={0} val={initVal}/>
 									</Dialog.Panel>
 								</Transition.Child>
 							</div>
@@ -78,7 +96,7 @@ const events = () => {
 
 	const loginFunc = async () => {
 		try {
-			loginWithRedirect({scope: "read:current_user"});
+			loginWithRedirect({scope: "read:current_user", appState: {returnTo: window.location.pathname}});
 		} catch (error) {
 			console.log(error);
 		}

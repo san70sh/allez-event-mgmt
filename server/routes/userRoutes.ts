@@ -159,7 +159,8 @@ router.get("/hostedEvents", checkJwt, async (req: JWTRequest, res: express.Respo
   try {
     const { auth } = req;
     if (auth && auth.sub) {
-      let getUserHostedEvents = await users.getHostedEvents(auth.sub);
+      let authId: string = auth.sub.split("|")[1];
+      let getUserHostedEvents = await users.getHostedEvents(authId);
       return res.status(200).send(getUserHostedEvents);
 
     }
@@ -172,7 +173,8 @@ router.get("/cohostedEvents", checkJwt, async (req: JWTRequest, res: express.Res
   try {
     const { auth } = req;
     if (auth && auth.sub) {
-      let getUserCohostedEvents = await users.getCohostedEvents(auth.sub);
+      let authId: string = auth.sub.split("|")[1];
+      let getUserCohostedEvents = await users.getCohostedEvents(authId);
       return res.status(200).send(getUserCohostedEvents);
     }
   } catch (e: any) {
@@ -184,7 +186,8 @@ router.get("/registeredEvents", checkJwt, async (req: JWTRequest, res: express.R
   try {
     const { auth } = req;
     if (auth && auth.sub) {
-      let getUserRegisteredEvents = await users.getRegisteredEvents(auth.sub);
+      let authId: string = auth.sub.split("|")[1];
+      let getUserRegisteredEvents = await users.getRegisteredEvents(authId);
       return res.status(200).send(getUserRegisteredEvents);
     }
   } catch (e: any) {
@@ -196,7 +199,8 @@ router.delete("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
     if (auth && auth.sub) {
-      let deleteUser = await users.deleteUser(auth.sub);
+      let authId: string = auth.sub.split("|")[1];
+      let deleteUser = await users.deleteUser(authId);
       return res.status(200).send(deleteUser);
     }
   } catch (e: any) {

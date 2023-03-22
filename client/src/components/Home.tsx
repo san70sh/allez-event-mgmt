@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import LoadingSpinner from "./Loading";
 
 const events: React.FC = () => {
-  const [events, setEvents] = useState<IEvent[]>([]);
+  // const [events, setEvents] = useState<IEvent[]>([]);
   const [displayedEvents, setDisplayedEvents] = useState<IEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -56,7 +56,7 @@ const events: React.FC = () => {
           <div className="px-6 pt-4 pb-2">
             {event.category.map((cat) => {
               return (
-                <span className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">
+                <span className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2" key={cat}>
                   #{cat}
                 </span>
               );
