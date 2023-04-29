@@ -23,13 +23,13 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
       .pattern(/^[a-z ,.'-]+$/i)
       .required(),
     zip: joi.number().required(),
-    geoLocation: {
-      lat: joi.number().required(),
-      long: joi.number().required(),
-    },
+    // geoLocation: {
+    //   lat: joi.number().required(),
+    //   long: joi.number().required(),
+    // },
   },
   eventImgs: joi.optional(),
-  bookedSeats: joi.number().min(0).required(),
+  bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
   hostId: joi.string().required(),
@@ -38,6 +38,8 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   description: joi.string().required(),
   price: joi.number().required().min(0),
   eventDate: joi.date().required().greater("now"),
+  eventStartTime: joi.string().required(),
+  eventEndTime: joi.string().required()
 });
 
 const validityCheck = (id: string | undefined, eventId: string | undefined) => {
@@ -73,16 +75,18 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
       state: eventDetails.venue.state.trim(),
       country: eventDetails.venue.country.trim(),
       zip: eventDetails.venue.zip,
-      geoLocation: {
-        lat: eventDetails.venue.geoLocation.lat,
-        long: eventDetails.venue.geoLocation.long,
-      },
+      // geoLocation: {
+      //   lat: eventDetails.venue.geoLocation.lat,
+      //   long: eventDetails.venue.geoLocation.long,
+      // },
     },
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
     eventImgs: eventDetails.eventImgs,
     eventDate: eventDetails.eventDate,
+    eventStartTime: eventDetails.eventStartTime,
+    eventEndTime: eventDetails.eventEndTime,
     totalSeats: eventDetails.totalSeats,
     bookedSeats: eventDetails.bookedSeats,
     cohostArr: eventDetails.cohostArr,
@@ -174,16 +178,18 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       state: eventDetails.venue.state.trim(),
       country: eventDetails.venue.country.trim(),
       zip: eventDetails.venue.zip,
-      geoLocation: {
-        lat: eventDetails.venue.geoLocation.lat,
-        long: eventDetails.venue.geoLocation.long,
-      },
+      // geoLocation: {
+      //   lat: eventDetails.venue.geoLocation.lat,
+      //   long: eventDetails.venue.geoLocation.long,
+      // },
     },
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
     eventImgs: eventDetails.eventImgs,
     eventDate: eventDetails.eventDate,
+    eventStartTime: eventDetails.eventStartTime,
+    eventEndTime: eventDetails.eventEndTime,
     totalSeats: eventDetails.totalSeats,
     bookedSeats: eventDetails.bookedSeats,
     cohostArr: eventDetails.cohostArr,
@@ -192,8 +198,9 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
 
   await events();
   let existingEvent = await collections.events?.findOne({
-    _id: eventId,
+    _id: new ObjectId(eventId),
   });
+
   if (existingEvent) {
     if (existingEvent.hostId != modifiedEvent.hostId) {
       let err: ErrorWithStatus = {
@@ -203,7 +210,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       throw err;
     } else {
       let updatedEvent = await collections.events?.updateOne(
-        { _id: modifiedEvent._id },
+        { _id: new ObjectId(eventId) },
         {
           $set: {
             name: modifiedEvent.name,
@@ -214,6 +221,8 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
             price: modifiedEvent.price,
             description: modifiedEvent.description,
             eventDate: modifiedEvent.eventDate,
+            eventStartTime: modifiedEvent.eventStartTime,
+            eventEndTime: modifiedEvent.eventEndTime
           },
         }
       );

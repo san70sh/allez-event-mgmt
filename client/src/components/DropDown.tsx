@@ -8,8 +8,8 @@ interface DropDownItem {
   value: string;
 }
 
-export const DropDown: React.FC<{ items: DropDownItem[]; label: string }> = ({ items, label }) => {
-  const [selectedItem, setSelectedItem] = useState<string>(label);
+export const DropDown: React.FC<{ items: DropDownItem[]; label: string, value: string }> = ({ items, label, value }) => {
+  const [selectedItem, setSelectedItem] = useState<string>(value);
   const { setFieldValue } = useFormikContext();
   useEffect(() => {
     setFieldValue(label.toLowerCase(), selectedItem);

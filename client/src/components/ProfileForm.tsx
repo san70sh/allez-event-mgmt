@@ -7,7 +7,7 @@ import { useInput } from "react-day-picker";
 import CalendarModal from "./Calendar";
 import LoadingSpinner from "./Loading";
 import axios, { AxiosResponse } from "axios";
-import { TextInputProps, UserValues as Values } from "../types/global";
+import { TextInputProps, UserValues as Values } from "../@types/global";
 
 enum actionType {
 	NEW,
@@ -58,7 +58,7 @@ const profileSchema = yup.object().shape({
 
 const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): JSX.Element => {
 	const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
-	const [userData, setUserData] = useState<Values>();
+	// const [userData, setUserData] = useState<Values>();
 	const { user, getAccessTokenSilently } = useAuth0();
 	
 
@@ -131,8 +131,25 @@ const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): J
 									},
 								}
 							);
-						}
-						setFunction(false);
+						} else {
+							await axios.put(
+								"http://localhost:3000/users/",
+								{
+									user: {
+										...values,
+										email: user?.email,
+										authId: user?.sub,
+									},
+								},
+								{
+									withCredentials: true,
+									headers: {
+										Authorization: `Bearer ${token}`,
+									},
+								}
+								);
+							}
+							setFunction(false);
 					}}>
 					{({ errors, touched, isSubmitting }) => (
 						<Form className="max-w-3xl mx-auto rounded-lg shadow-xl overflow-hidden p-6 space-y-7">
@@ -143,7 +160,7 @@ const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): J
 							<div className="grid grid-cols-12 space-x-8 px-2">
 								<div className="relative col-span-5 col-start-1">
 									<div className={`border-2 rounded-lg focus-within:border-blue-500 ${errors.gender && touched.gender ? `border-red-500` : ""} `}>
-										<Field as={DropDown} items={genderVal} label="Gender" className="" />
+										<Field as={DropDown} items={genderVal} label="Gender" value={initVal.gender ? initVal.gender : "Gender"} />
 									</div>
 									<ErrorMessage name="gender">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 								</div>

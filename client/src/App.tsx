@@ -10,6 +10,7 @@ import "./index.css";
 import NewEvent from "./components/NewEvent";
 import { Callback } from "./components/Callback";
 import { AuthGuard } from "./components/AuthGuard";
+import EventDetail from "./components/EventDetail";
 
 // const ProtectedRoute: React.FC = () => {
 // 	const location = useLocation();
@@ -39,8 +40,21 @@ const router = createBrowserRouter([
 					},
 					{
 						path: "/events/new",
-						element: <AuthGuard component={NewEvent} props={{type: 0}}/>,
+						element: <AuthGuard component={NewEvent}/>,
 					},
+					{
+						path: "/events/:eventId",
+						children: [
+							{
+								index: true,
+								element: <EventDetail />,
+							},
+							{
+								path: "modify",
+								element: <AuthGuard component={NewEvent} />
+							}
+						]
+					}
 				],
 			},
 			{

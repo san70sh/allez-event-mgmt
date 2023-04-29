@@ -6,7 +6,7 @@ import { ProfileDropDown, DropDownItem } from "./ProfileDropDown";
 import ProfileForm from "./ProfileForm";
 import { Dialog, Transition } from "@headlessui/react";
 import axios, { AxiosError } from "axios";
-import { UserValues as Values } from "../types/global";
+import { ActionType, UserValues as Values } from "../@types/global";
 
 const initVal: Values = {
 	firstName: "",
@@ -57,7 +57,7 @@ const events = () => {
 			}
 		}
 		getUser();
-	}, [isAuthenticated, openProfileForm]);
+	}, [isAuthenticated]);
 
 	useEffect(() => {
 		if (isAuthenticated && !isProfilePresent) {
@@ -112,7 +112,7 @@ const events = () => {
 
 	const hostEvent = () => {
 		if (isProfilePresent) {
-			navigate("/events/new");
+			navigate("/events/new", {state: {type: ActionType.NEW}});
 		} else {
 			setOpenProfileForm(true);
 		}

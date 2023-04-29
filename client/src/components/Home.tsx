@@ -39,7 +39,7 @@ const events: React.FC = () => {
     let imgSrc = event.eventImgs.length > 0 ? event.eventImgs[0] : noImage;
     return (
       <div
-        className="max-w-sm rounded-xl overflow-hidden shadow-md hover:scale-110 hover:duration-150 duration-150"
+        className="max-w-sm rounded-xl overflow-hidden scale-90 shadow-md hover:scale-110 hover:duration-150 duration-150"
         key={event._id}
       >
         <Link to={`events/${event._id}`}>
@@ -79,7 +79,7 @@ const events: React.FC = () => {
         <button className="px-4 mx-32 rounded-sm col-start-4 col-end-7 border-2">Going</button>
         <button className="px-4 py-2 mx-32 rounded-sm col-start-7 col-end-9 border-2">Saved</button>
       </div>
-      <div className="mt-5 mx-5 grid grid-flow-col">{card}</div>
+      <div className="mt-5 mx-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 auto-cols-max">{card}</div>
     </div>
   );
 };

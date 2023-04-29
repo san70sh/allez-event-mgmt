@@ -1,24 +1,21 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useInput } from "react-day-picker";
 import * as yup from "yup";
 import { ErrorMessage, Field, FieldProps, Form, Formik, FormikHelpers } from "formik";
 import Map from "./Map";
 import { useJsApiLoader, LoadScriptProps } from "@react-google-maps/api";
-import { getGeocode, getLatLng, getZipCode } from "use-places-autocomplete";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import CalendarModal from "./Calendar";
 import LoadingSpinner from "./Loading";
 import dayjs from "dayjs";
-import { ActionType, EventValues as Values } from "../types/global";
+import { ActionType, EventValues as Values } from "../@types/global";
 import Select from "./Select";
 import { TimePicker, Select as CategorySelect, SelectProps } from "antd";
 import { useAuth0 } from "@auth0/auth0-react";
-import { useNavigate } from "react-router-dom";
+import { Location, useLocation, useNavigate } from "react-router-dom";
+import IEvent from "../models/events.model";
 
-type LatLng = google.maps.LatLngLiteral;
-type GeocodeResult = google.maps.GeocoderResult[];
 const libraries: LoadScriptProps["libraries"] = ["places"];
-
 
 const categoryOpts: SelectProps["options"] = [
 	{ value: "Career", label: "Career" },
@@ -33,6 +30,20 @@ const categoryOpts: SelectProps["options"] = [
 	{ value: "Other", label: "Other" },
 ];
 
+const defaultVal: Values = {
+	// eventImgs: [],
+	name: "",
+	category: [],
+	price: 0,
+	description: "",
+	totalSeats: 0,
+	minAge: 0,
+	venue: "",
+	eventDate: new Date(),
+	eventStartTime: "",
+	eventEndTime: "",
+};
+
 const eventSchema = yup.object().shape({
 	name: yup.string().required("Please enter the event name").min(1),
 	price: yup
@@ -45,7 +56,10 @@ const eventSchema = yup.object().shape({
 	totalSeats: yup.number().required().min(0),
 	minAge: yup.number().required().min(0),
 	category: yup.array().of(yup.string()).required().min(1),
-	venue: yup.string().matches(/^[a-z0-9 ,.'-]+$/i).required("Address Required"),
+	venue: yup
+		.string()
+		.matches(/^[a-z0-9 ,.'-]+$/i)
+		.required("Address Required"),
 	eventDate: yup.date().required("Please select the date of the event").min(dayjs(new Date()).add(1, "day"), "Event must be after today"),
 	eventStartTime: yup.string().required("Enter start time"),
 	eventEndTime: yup
@@ -57,32 +71,23 @@ const eventSchema = yup.object().shape({
 		}),
 });
 
-const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
+const NewEvent: React.FC = () => {
 	const [isCalendarOpen, setIsCalendarOpen] = React.useState<boolean>(false);
 	const [venueLoc, setVenueLoc] = React.useState<string>("");
 	const [startTime, setStartTime] = React.useState<dayjs.Dayjs | undefined>(undefined);
 	const [endTime, setEndTime] = React.useState<dayjs.Dayjs | undefined>(undefined);
+	const [initVal, setInitVal] = useState<Values>(defaultVal);
 	const { user, getAccessTokenSilently } = useAuth0();
 
 	const navigate = useNavigate();
 
-	let initVal: Values = {
-		// eventImgs: [],
-		name: "",
-		category: [],
-		price: 0,
-		description: "",
-		totalSeats: 0,
-		minAge: 0,
-		venue: undefined,
-		eventDate: new Date(),
-		eventStartTime: "",
-		eventEndTime: "",
-	};
+	const { state }: Location = useLocation();
+	const { type, eventId }: { type: ActionType; eventId: string } = state;
+
 	const { isLoaded } = useJsApiLoader({
 		id: "google-script",
 		googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API!,
-		libraries: libraries,
+		libraries,
 	});
 
 	const { inputProps, dayPickerProps, setSelected } = useInput({
@@ -90,25 +95,36 @@ const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
 		toYear: 2025,
 		format: "PP",
 		required: true,
+		defaultSelected: initVal.eventDate,
 	});
 
-	const getGCAndZip = async (venue: string) => {
-		let geoCode: GeocodeResult = await getGeocode({
-			address: venue,
-			region: "us",
-			componentRestrictions: {
-				country: "us",
-			},
-		});
-
-		let newZip: string = "";
-		let newCoord: LatLng = getLatLng(geoCode[0]);
-		if (getZipCode(geoCode[0], false) !== null) {
-			newZip = getZipCode(geoCode[0], false) as string;
+	useEffect(() => {
+		if (eventId) {
+			let getEvent = async (eId: string) => {
+				const eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eId}`);
+				if (eventDetails && eventDetails.status == 200) {
+					const { data } = eventDetails;
+					let fetchedEvt: Values = {
+						name: data.name,
+						category: data.category,
+						price: data.price,
+						description: data.description,
+						totalSeats: data.totalSeats,
+						minAge: data.minAge,
+						venue: Object.values(data.venue).join(", "),
+						eventDate: new Date(data.eventDate),
+						eventStartTime: data.eventStartTime,
+						eventEndTime: data.eventEndTime,
+					};
+					setInitVal(fetchedEvt);
+					setVenueLoc(fetchedEvt.venue);
+					setSelected(new Date(fetchedEvt.eventDate));
+				}
+			};
+			getEvent(eventId);
 		}
+	}, [eventId]);
 
-		return { zipCode: newZip, venueCoord: newCoord };
-	};
 
 	return (
 		<div>
@@ -118,41 +134,63 @@ const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
 						<Formik
 							initialValues={initVal}
 							validationSchema={eventSchema}
+							enableReinitialize
 							onSubmit={async (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
-								let { zipCode, venueCoord } = await getGCAndZip(venueLoc);
 								let completeAddress = venueLoc?.split(",");
 								let token = await getAccessTokenSilently({
 									audience: "localhost:5173/api",
 									scope: "read:current_user",
 								});
-								let newEvent = await axios.post(
-									"http://localhost:3000/events/new",
-									{
-										...values,
-										venue: {
-											address: completeAddress[0].trim(),
-											city: completeAddress[1].trim(),
-											state: completeAddress[2].trim(),
-											country: completeAddress[3].trim(),
-											zip: parseInt(zipCode),
-											geoLocation: {
-												lat: venueCoord.lat,
-												long: venueCoord.lng,
+								if (type == ActionType.NEW) {
+									let newEvent = await axios.post(
+										"http://localhost:3000/events/new",
+										{
+											...values,
+											venue: {
+												address: completeAddress[0].trim(),
+												city: completeAddress[1].trim(),
+												state: completeAddress[2].trim(),
+												country: completeAddress[3].trim(),
+												zip: parseInt(completeAddress[4].trim())
 											},
+											hostId: user?.sub,
 										},
-										hostId: user?.sub,
-									},
-									{
-										withCredentials: true,
-										headers: {
-											Authorization: `Bearer ${token}`,
-										},
+										{
+											withCredentials: true,
+											headers: {
+												Authorization: `Bearer ${token}`,
+											},
+										}
+									);
+									if (newEvent && newEvent.status == 200) {
+										navigate("/");
 									}
-								);
-
-								if (newEvent) {
-									navigate("/");
+								} else if (type == ActionType.EDIT) {
+									let modifiedEvent = await axios.put(
+										`http://localhost:3000/events/${eventId}`,
+										{
+											...values,
+											venue: {
+												address: completeAddress[0].trim(),
+												city: completeAddress[1].trim(),
+												state: completeAddress[2].trim(),
+												country: completeAddress[3].trim(),
+												zip: parseInt(completeAddress[4].trim())
+											},
+											hostId: user?.sub,
+										},
+										{
+											withCredentials: true,
+											headers: {
+												Authorization: `Bearer ${token}`,
+											},
+										}
+									);
+									if (modifiedEvent && modifiedEvent.status == 200) {
+										navigate("/");
+									}
 								}
+
 							}}>
 							{({ errors, touched, isSubmitting }) => (
 								<Form>
@@ -183,6 +221,7 @@ const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
 														allowClear
 														showSearch
 														size="large"
+														value={initVal.category}
 														style={{ width: "100%", position: "relative", display: "block", fontStyle: "italic", fontSize: "9" }}
 														placeholder="Please select a category"
 														options={categoryOpts}
@@ -226,15 +265,8 @@ const NewEvent: React.FC<{type: ActionType}> = ({type}) => {
 									</div>
 									<div className="border-2 border-gray-300 rounded my-4" />
 									<div className="text-center">Venue</div>
-									<Select isLoaded={isLoaded} setFunction={setVenueLoc} />
+									<Select isLoaded={isLoaded} setFunction={setVenueLoc} value={initVal.venue!} />
 									<div className="grid"></div>
-									{/* <div className="relative px-2 grid grid-flow-col space-x-16">
-										<TextInput label={"City"} name={"venue.city"} inputType="input" error={errors.venue?.city} touch={touched.venue?.city} className="" />
-										<TextInput label={"State"} name={"venue.state"} inputType="input" error={errors.venue?.state} touch={touched.venue?.state} className="" />
-										</div>
-										<div className="relative px-2 grid grid-flow-col space-x-16">
-										<TextInput label={"Country"} name={"venue.country"} inputType="input" error={errors.venue?.country} touch={touched.venue?.country} className="" />
-									</div> */}
 									<div className="grid px-2 pb-4">
 										<div className="relative">
 											<label htmlFor="eventDate" hidden>

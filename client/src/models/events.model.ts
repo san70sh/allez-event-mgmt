@@ -17,8 +17,10 @@ export default interface IEvent {
         state: string,
         zip: number,
         country: string,
-        geoLocation: {lat: number, long: number}
+        // geoLocation: {lat: number, long: number}
     },
-    eventDate: string
+    eventDate: string,
+    eventStartTime: string,
+    eventEndTime: string
 
 }
