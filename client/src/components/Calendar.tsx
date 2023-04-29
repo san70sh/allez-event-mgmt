@@ -3,7 +3,7 @@ import { useFormikContext } from "formik";
 import { Fragment } from "react";
 import { ClassNames, DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { ModalProps } from "../types/global";
+import { ModalProps } from "../@types/global";
 
 const CalendarModal = ({isCalendarOpen, setFunction, dayProps, setDateField, fieldName}: ModalProps): JSX.Element => {
     const selectedStyle: ClassNames = { day_selected: "bg-orange-200 text-orange-500" };
@@ -33,6 +33,7 @@ const CalendarModal = ({isCalendarOpen, setFunction, dayProps, setDateField, fie
                                             setDateField(day);
                                         }}
                                         classNames={selectedStyle}
+                                        // selected={value}
                                         
                                     />
                                 </Dialog.Panel>

@@ -30,13 +30,13 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
       .pattern(/^[a-z ,.'-]+$/i)
       .required(),
     zip: joi.number().required(),
-    geoLocation: {
-      lat: joi.number().required(),
-      long: joi.number().required(),
-    },
+    // geoLocation: {
+    //   lat: joi.number().required(),
+    //   long: joi.number().required(),
+    // },
   },
   eventImgs: joi.array().optional(),
-  bookedSeats: joi.number().min(0).required(),
+  bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
   hostId: joi.string().required(),
@@ -45,13 +45,14 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   description: joi.string().required(),
   price: joi.number().required().min(0),
   eventDate: joi.date().required().min("now"),
+  eventStartTime: joi.string().required(),
+  eventEndTime: joi.string().required()
 });
 
 router.post("/new", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
       const { body, auth } = req;
       let eventDetails = body;
-      console.log(eventDetails)
       if (auth && auth.sub) {
 
         let eventImages: string[] = [];
@@ -65,16 +66,18 @@ router.post("/new", checkJwt, async (req: JWTRequest, res: express.Response) => 
             state: xss(eventDetails.venue.state.trim()),
             country: xss(eventDetails.venue.country.trim()),
             zip: Number(xss(eventDetails.venue.zip)),
-            geoLocation: {
-              lat: Number(xss(eventDetails.venue.geoLocation.lat)),
-              long: Number(xss(eventDetails.venue.geoLocation.long)),
-            },
+            // geoLocation: {
+            //   lat: Number(xss(eventDetails.venue.geoLocation.lat)),
+            //   long: Number(xss(eventDetails.venue.geoLocation.long)),
+            // },
           },
           minAge: Number(xss(eventDetails.minAge)),
           price: Number(xss(eventDetails.price)),
           description: xss(eventDetails.description),
           eventImgs: eventImages,
           eventDate: xss(eventDetails.eventDate),
+          eventStartTime: xss(eventDetails.eventStartTime),
+          eventEndTime: xss(eventDetails.eventEndTime),
           totalSeats: Number(xss(eventDetails.totalSeats)),
           bookedSeats: Number(xss(eventDetails.bookedSeats)),
           cohostArr: [],
@@ -128,6 +131,8 @@ router.put("/:eventId", checkJwt, async (req: JWTRequest, res: express.Response)
           eventDate: event.eventDate,
           bookedSeats: event.bookedSeats,
           totalSeats: event.totalSeats,
+          eventStartTime: event.eventStartTime,
+          eventEndTime: event.eventEndTime,
           cohostArr: event.cohostArr,
           attendeesArr: event.attendeesArr,
           eventImgs: event.eventImgs,
@@ -137,10 +142,10 @@ router.put("/:eventId", checkJwt, async (req: JWTRequest, res: express.Response)
             state: event.venue.state,
             country: event.venue.country,
             zip: event.venue.zip,
-            geoLocation: {
-              lat: event.venue.geoLocation.lat,
-              long: event.venue.geoLocation.long,
-            },
+            // geoLocation: {
+            //   lat: event.venue.geoLocation.lat,
+            //   long: event.venue.geoLocation.long,
+            // },
           },
         };
   

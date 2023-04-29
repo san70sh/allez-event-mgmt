@@ -172,8 +172,8 @@ async function modifyUser(person: IUser): Promise<IUser> {
           address: modifiedUser.address,
           phone: modifiedUser.phone,
           dateOfBirth: modifiedUser.dateOfBirth,
-          hostEventArray: modifiedUser.hostEventArray,
-          attendEventArray: modifiedUser.attendEventArray,
+          // hostEventArray: modifiedUser.hostEventArray,
+          // attendEventArray: modifiedUser.attendEventArray,
         },
       }
     );
@@ -295,13 +295,11 @@ async function removeRegisteredEvents(auth: string, eventId: string): Promise<IU
 
 async function addHostedEvents(auth: string, eventId: string): Promise<IUser> {
   validityCheck(auth, eventId);
-  console.log(auth)
   let queryId: ObjectId = new ObjectId(auth);
   await users();
   let user: WithoutId<IUser> | null | undefined = await collections.users?.findOne({
     _id: queryId
   });
-  console.log(user)
   if (user) {
     let registeredUser: UpdateResult | undefined = await collections.users?.updateOne({
       _id: queryId

@@ -32,7 +32,7 @@ export interface EventValues {
 	description: string;
 	totalSeats: number;
 	minAge: number;
-	venue: string | undefined;
+	venue: string;
 	eventDate: Date;
     eventStartTime: string,
     eventEndTime: string
@@ -55,6 +55,7 @@ export interface UserValues {
 export interface SelectProps {
     isLoaded: boolean
     setFunction: Dispatch<SetStateAction<string>>,
+	value: string
 }
 
 
@@ -68,4 +69,5 @@ export interface ModalProps {
     dayProps: InputDayPickerProps,
     setDateField: Function,
     fieldName: string,
+	// value: Date
 }

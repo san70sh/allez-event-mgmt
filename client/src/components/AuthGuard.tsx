@@ -1,17 +1,18 @@
 import { withAuthenticationRequired } from "@auth0/auth0-react";
 import LoadingSpinner from "./Loading";
 import { ComponentType } from "react";
-import { ActionType } from "../types/global";
+import { ActionType } from "../@types/global";
+import { Location, useLocation } from "react-router-dom";
 
-type ActionProps = {
-    type: ActionType
-}
+// type ActionProps = {
+//     type: ActionType | undefined
+// }
 interface AuthGuardProps {
-    component: ComponentType<ActionProps>
-    props?: ActionProps
+    // component: ComponentType<ActionProps>
+    component: ComponentType
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({component, props}) => {
+export const AuthGuard: React.FC<AuthGuardProps> = ({component}) => {
     const Component = withAuthenticationRequired(component, {
         onRedirecting: () => (
             <div>
@@ -19,6 +20,5 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({component, props}) => {
             </div>
         )
     });
-
-    return <Component {...props!}/>
+    return <Component/>
 }
