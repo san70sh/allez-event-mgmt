@@ -19,6 +19,17 @@ const events: React.FC = () => {
         withCredentials: true,
       });
       if (eventData.data) {
+        let events = eventData.data.map(async (event) => {
+          if(event.eventImg) {
+            let eventImage = await axios.get(`http://localhost:3000/events/images/${event.eventImg}`, {
+              responseType: 'blob'
+            })
+            if(eventImage && eventImage.data) {
+              event.eventImg = URL.createObjectURL(eventImage.data)
+            }
+          }
+        })
+        await Promise.all(events)
         setLoading(false);
         setDisplayedEvents(eventData.data);
       }
@@ -36,7 +47,12 @@ const events: React.FC = () => {
   }
 
   const eventCard = (event: IEvent): JSX.Element => {
-    let imgSrc = event.eventImgs.length > 0 ? event.eventImgs[0] : noImage;
+    let imgSrc = ""
+    if (event.eventImg) {
+      imgSrc = event.eventImg
+    } else {
+      imgSrc = noImage
+    }
     return (
       <div
         className="max-w-sm rounded-xl overflow-hidden scale-90 shadow-md hover:scale-110 hover:duration-150 duration-150"
@@ -67,7 +83,7 @@ const events: React.FC = () => {
     );
   };
 
-  if (displayedEvents.length > 0) {
+  if (displayedEvents && displayedEvents.length > 0) {
     card = displayedEvents.map((event) => {
       return eventCard(event);
     });
@@ -79,7 +95,7 @@ const events: React.FC = () => {
         <button className="px-4 mx-32 rounded-sm col-start-4 col-end-7 border-2">Going</button>
         <button className="px-4 py-2 mx-32 rounded-sm col-start-7 col-end-9 border-2">Saved</button>
       </div>
-      <div className="mt-5 mx-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 auto-cols-max">{card}</div>
+      {displayedEvents ? <div className="mt-5 mx-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 auto-cols-max">{card}</div>: <p>No Events</p>}
     </div>
   );
 };

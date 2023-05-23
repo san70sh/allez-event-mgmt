@@ -1,8 +1,7 @@
 import dbConnection from "./mongoConnection";
 import IUser from "../models/users.model";
-import {Collection} from "mongodb";
+import {Collection, GridFSBucket} from "mongodb";
 import IEvent from "../models/events.model";
-
 
 
 export const collections: {
@@ -32,3 +31,13 @@ export async function events() {
         }
     };
 };
+
+export async function images() {
+    const db = await dbConnection();
+    if(db) {
+        const collection = new GridFSBucket(db, {
+            bucketName: "images"
+        })
+        return collection
+    }
+}

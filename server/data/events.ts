@@ -1,6 +1,6 @@
 import joi from "joi";
-import { ObjectId } from "mongodb";
-import { collections, events } from "../config/mongoCollections";
+import { GridFSBucketReadStream, ObjectId } from "mongodb";
+import { collections, events, images } from "../config/mongoCollections";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 import users from "./users";
@@ -28,7 +28,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
     //   long: joi.number().required(),
     // },
   },
-  eventImgs: joi.optional(),
+  eventImg: joi.optional(),
   bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
@@ -83,7 +83,7 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
-    eventImgs: eventDetails.eventImgs,
+    eventImg: eventDetails.eventImg,
     eventDate: eventDetails.eventDate,
     eventStartTime: eventDetails.eventStartTime,
     eventEndTime: eventDetails.eventEndTime,
@@ -150,7 +150,6 @@ async function getEventById(eventId: string): Promise<IEvent> {
   let queryId: ObjectId = new ObjectId(eventId);
 
   let event: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
-
   if (!event) {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
@@ -186,7 +185,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
-    eventImgs: eventDetails.eventImgs,
+    eventImg: eventDetails.eventImg,
     eventDate: eventDetails.eventDate,
     eventStartTime: eventDetails.eventStartTime,
     eventEndTime: eventDetails.eventEndTime,
@@ -216,7 +215,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
             name: modifiedEvent.name,
             category: modifiedEvent.category,
             venue: modifiedEvent.venue,
-            eventImgs: modifiedEvent.eventImgs,
+            eventImg: modifiedEvent.eventImg,
             totalSeats: modifiedEvent.totalSeats,
             price: modifiedEvent.price,
             description: modifiedEvent.description,
@@ -295,6 +294,21 @@ async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: number }> 
   }
 }
 
+async function populateEventImages(imageFileName: string): Promise<{imageBlob: GridFSBucketReadStream, type: string | undefined}> {
+  let storage = await images();
+  if (storage) {
+    let imageFind = await storage.find({filename: imageFileName}).toArray()
+    const loadImage = storage.openDownloadStreamByName(imageFileName)
+    return {imageBlob: loadImage, type: imageFind[0].contentType}
+  } else {
+    let err: ErrorWithStatus = {
+      message: "Unable to find image in database",
+      status: 500,
+    };
+    throw err;
+  }
+}
+
 async function deleteAllEventsOfHost(hostId: string) {
   validityCheck(hostId, undefined);
 
@@ -311,7 +325,6 @@ async function deleteAllEventsOfHost(hostId: string) {
   }
 }
 
-async function addEventImages(eventId: string, imgArr: string[]) {}
 
 async function addCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
   validityCheck(cohostId, eventId);
@@ -504,6 +517,6 @@ export default {
   removeCohost,
   addAttendee,
   removeAttendee,
-  addEventImages,
+  populateEventImages,
   deleteAllEventsOfHost,
 };

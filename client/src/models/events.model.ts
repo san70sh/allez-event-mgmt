@@ -1,6 +1,6 @@
 export default interface IEvent {
     _id ?: string,
-    eventImgs : string[],
+    eventImg : string,
     name : string,
     category : string[],
     price: number,

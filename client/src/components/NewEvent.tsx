@@ -14,6 +14,7 @@ import { TimePicker, Select as CategorySelect, SelectProps } from "antd";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Location, useLocation, useNavigate } from "react-router-dom";
 import IEvent from "../models/events.model";
+import upload from "../assets/upload.svg";
 
 const libraries: LoadScriptProps["libraries"] = ["places"];
 
@@ -31,7 +32,7 @@ const categoryOpts: SelectProps["options"] = [
 ];
 
 const defaultVal: Values = {
-	// eventImgs: [],
+	eventImg: undefined,
 	name: "",
 	category: [],
 	price: 0,
@@ -69,6 +70,23 @@ const eventSchema = yup.object().shape({
 			const { eventStartTime } = this.parent;
 			return dayjs(val, "h:mm A").isAfter(dayjs(eventStartTime, "h:mm A"));
 		}),
+	eventImg: yup.mixed().test("type", "Only Image files", function (val) {
+		if (val) {
+			return val && ["image/jpeg", "image/png", "image/jpg"].includes(val.type);
+		} else {
+			return true;
+		}
+	}).test("size", "File Size Exceeded", function(val) {
+		if(val) {
+			if(val.size < 70000000) {
+				return true
+			} else {
+				return false
+			}
+		} else {
+			return true
+		}
+	}),
 });
 
 const NewEvent: React.FC = () => {
@@ -78,6 +96,9 @@ const NewEvent: React.FC = () => {
 	const [endTime, setEndTime] = React.useState<dayjs.Dayjs | undefined>(undefined);
 	const [initVal, setInitVal] = useState<Values>(defaultVal);
 	const { user, getAccessTokenSilently } = useAuth0();
+	const [imageURL, setImageURL] = useState<string>();
+	const [image, setImage] = useState<File>();
+	const [categoryLst, setCategoryLst] = useState<string[]>([]);
 
 	const navigate = useNavigate();
 
@@ -98,12 +119,30 @@ const NewEvent: React.FC = () => {
 		defaultSelected: initVal.eventDate,
 	});
 
+	const onImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		if (event.target.files && event.target.files[0]) {
+			setImageURL(URL.createObjectURL(event.target.files[0]));
+			setImage(event.target.files[0]);
+		}
+	};
+
 	useEffect(() => {
 		if (eventId) {
 			let getEvent = async (eId: string) => {
 				const eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eId}`);
 				if (eventDetails && eventDetails.status == 200) {
 					const { data } = eventDetails;
+					let imgSrc = ""
+					let eventImage = {data: undefined}
+					if(data.eventImg) {
+						let eventImage = await axios.get(`http://localhost:3000/events/images/${data.eventImg}`, {
+							responseType: 'blob',
+							
+						});
+						if (eventImage && eventImage.data) {
+							imgSrc = URL.createObjectURL(eventImage.data)
+						}
+					}
 					let fetchedEvt: Values = {
 						name: data.name,
 						category: data.category,
@@ -115,16 +154,21 @@ const NewEvent: React.FC = () => {
 						eventDate: new Date(data.eventDate),
 						eventStartTime: data.eventStartTime,
 						eventEndTime: data.eventEndTime,
+						eventImg: eventImage.data,
 					};
 					setInitVal(fetchedEvt);
 					setVenueLoc(fetchedEvt.venue);
 					setSelected(new Date(fetchedEvt.eventDate));
+					setImage(eventImage.data);
+					setImageURL(imgSrc)
+					setStartTime(dayjs(fetchedEvt.eventStartTime, "h:mm A"));
+					setEndTime(dayjs(fetchedEvt.eventEndTime, "h:mm A"));
+					setCategoryLst(fetchedEvt.category);
 				}
 			};
 			getEvent(eventId);
 		}
 	}, [eventId]);
-
 
 	return (
 		<div>
@@ -151,14 +195,16 @@ const NewEvent: React.FC = () => {
 												city: completeAddress[1].trim(),
 												state: completeAddress[2].trim(),
 												country: completeAddress[3].trim(),
-												zip: parseInt(completeAddress[4].trim())
+												// zip: parseInt(completeAddress[4].trim())
 											},
+											eventImg: image,
 											hostId: user?.sub,
 										},
 										{
 											withCredentials: true,
 											headers: {
 												Authorization: `Bearer ${token}`,
+												"Content-Type": "multipart/form-data",
 											},
 										}
 									);
@@ -175,14 +221,16 @@ const NewEvent: React.FC = () => {
 												city: completeAddress[1].trim(),
 												state: completeAddress[2].trim(),
 												country: completeAddress[3].trim(),
-												zip: parseInt(completeAddress[4].trim())
+												zip: parseInt(completeAddress[4].trim()),
 											},
 											hostId: user?.sub,
+											eventImg: image,
 										},
 										{
 											withCredentials: true,
 											headers: {
 												Authorization: `Bearer ${token}`,
+												"Content-Type": "multipart/form-data",
 											},
 										}
 									);
@@ -190,20 +238,19 @@ const NewEvent: React.FC = () => {
 										navigate("/");
 									}
 								}
-
 							}}>
 							{({ errors, touched, isSubmitting }) => (
 								<Form>
 									<div className="relative px-2 grid pb-4">
-										<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.name && touched.name ? `border-red-500` : ""} `}>
-											<Field id="name" name="name" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
+										<div className={`relative border-b-2 focus-within:border-blue-500 ${errors.name && touched.name ? `border-red-500` : ""} `}>
+											<Field id="name" name="name" placeholder=" " className="block p-2 rounded-lg w-full text-3xl appearance-none focus:outline-none bg-transparent " />
 											<label htmlFor="name" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
 												Event Name
 											</label>
 										</div>
 										<ErrorMessage name="name">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
 									</div>
-									<div className="relative px-2 pb-4">
+									<div className="relative px-2 pb-4 col-span-2">
 										<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.description && touched.description ? `border-red-500` : ""} `}>
 											<Field id="description" name="description" as="textarea" rows="4" placeholder=" " className="relative block p-2 rounded-lg w-full text-lg appearance-none focus-within:outline-none bg-transparent" />
 											<label htmlFor="description" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
@@ -212,91 +259,105 @@ const NewEvent: React.FC = () => {
 										</div>
 										<ErrorMessage name="description">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 									</div>
-									<div className="relative px-2 pb-4">
-										<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.category && touched.category ? `border-red-500` : ""} `}>
-											<Field>
-												{({ form }: FieldProps) => (
-													<CategorySelect
-														mode="multiple"
-														allowClear
-														showSearch
-														size="large"
-														value={initVal.category}
-														style={{ width: "100%", position: "relative", display: "block", fontStyle: "italic", fontSize: "9" }}
-														placeholder="Please select a category"
-														options={categoryOpts}
-														onChange={(val) => {
-															form.setFieldValue("category", val);
-														}}
-													/>
-												)}
-											</Field>
-										</div>
-										<ErrorMessage name="category">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
-									</div>
-									<div className="relative px-2 grid pb-4">
-										<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.price && touched.price ? `border-red-500` : ""} `}>
-											<Field id="price" name="price" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
-											<label htmlFor="price" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
-												Registration Fee
-											</label>
-										</div>
-										<ErrorMessage name="price">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
-									</div>
-									<div className="relative px-2 grid grid-flow-col space-x-16">
-										<div className="relative px-2 grid pb-4">
-											<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.totalSeats && touched.totalSeats ? `border-red-500` : ""} `}>
-												<Field id="totalSeats" name="totalSeats" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
-												<label htmlFor="totalSeats" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
-													Total Seats
-												</label>
+									<div className="grid grid-cols-2">
+										<div>
+											<div className="relative px-2 pb-4">
+												<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.category && touched.category ? `border-red-500` : ""} `}>
+													<Field>
+														{({ form }: FieldProps) => (
+															<CategorySelect
+																mode="multiple"
+																allowClear
+																showSearch
+																size="large"
+																value={categoryLst}
+																style={{ width: "100%", position: "relative", display: "block", fontStyle: "italic", fontSize: "9" }}
+																placeholder="Please select a category"
+																options={categoryOpts}
+																onChange={(val) => {
+																	setCategoryLst(val);
+																	form.setFieldValue("category", val);
+																}}
+															/>
+														)}
+													</Field>
+												</div>
+												<ErrorMessage name="category">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 											</div>
-											<ErrorMessage name="totalSeats">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
-										</div>
-										<div className="relative px-2 grid pb-4">
-											<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.minAge && touched.minAge ? `border-red-500` : ""} `}>
-												<Field id="minAge" name="minAge" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
-												<label htmlFor="minAge" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
-													Minimum Age
-												</label>
+											<div className="relative px-2 pb-4">
+												<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.price && touched.price ? `border-red-500` : ""} `}>
+													<Field id="price" name="price" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
+													<label htmlFor="price" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
+														Registration Fee
+													</label>
+												</div>
+												<ErrorMessage name="price">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
 											</div>
-											<ErrorMessage name="minAge">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
+											<div className="relative px-2 pb-4">
+												<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.totalSeats && touched.totalSeats ? `border-red-500` : ""} `}>
+													<Field id="totalSeats" name="totalSeats" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
+													<label htmlFor="totalSeats" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
+														Total Seats
+													</label>
+												</div>
+												<ErrorMessage name="totalSeats">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
+											</div>
+										</div>
+										<div className="grid grid-row-7">
+											<div className="relative grid row-span-5 row-start-1">
+												<div className={`border-2 rounded-lg focus-within:border-blue-500 ${errors.eventImg && touched.eventImg ? `border-red-500` : ""} `}>
+													<label htmlFor="eventImg">
+														<img src={upload} alt="upload icon" className="w-7 h-7 mt-1" />
+														<input type="file" accept="image/*" id="eventImg" name="eventImg" onChange={onImageChange} hidden />
+														{imageURL && <img src={imageURL} alt="preview image" className="w-3/6 h-3/6 mx-auto" />}
+													</label>
+												</div>
+												<ErrorMessage name="eventImg">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
+											</div>
+											<div className="relative px-2 pt-4">
+												<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.minAge && touched.minAge ? `border-red-500` : ""} `}>
+													<Field id="minAge" name="minAge" placeholder=" " className="block p-2 rounded-lg w-full text-lg appearance-none focus:outline-none bg-transparent " />
+													<label htmlFor="minAge" className="absolute top-0 text-sm rounded-md bg-white text-gray-600 italic p-2 m-2 origin-top-left">
+														Minimum Age
+													</label>
+												</div>
+												<ErrorMessage name="minAge">{(msg) => <div className="relative text-red-600 text-sm text-center mt-1 px-2">{msg}</div>}</ErrorMessage>
+											</div>
 										</div>
 									</div>
 									<div className="border-2 border-gray-300 rounded my-4" />
 									<div className="text-center">Venue</div>
 									<Select isLoaded={isLoaded} setFunction={setVenueLoc} value={initVal.venue!} />
-									<div className="grid"></div>
-									<div className="grid px-2 pb-4">
-										<div className="relative">
-											<label htmlFor="eventDate" hidden>
-												Event Date
-											</label>
-											<div className="grid grid-cols-12 justify-center">
-												<div className={`relative border-2 col-span-7 col-start-3 rounded-lg focus-within:border-blue-500 ${errors.eventDate && touched.eventDate ? `border-red-500` : ""} `}>
-													<Field id="eventDate" name="eventDate" {...inputProps} placeholder="Enter event date" readOnly={"readonly"} className={`block cursor-auto p-3 rounded-lg text-sm appearance-none focus:outline-none bg-transparent placeholder:italic`} />
+									<div className="grid grid-cols-10 p-2 space-x-1">
+										<div className="pb-4 col-start-1 col-span-6">
+											<div className="relative">
+												<label htmlFor="eventDate" hidden>
+													Event Date
+												</label>
+												<div className="grid grid-cols-4 justify-center">
+													<div className={`relative border-2 col-span-3 rounded-lg focus-within:border-blue-500 ${errors.eventDate && touched.eventDate ? `border-red-500` : ""} `}>
+														<Field id="eventDate" name="eventDate" {...inputProps} placeholder="Enter event date" readOnly={"readonly"} className={`block cursor-auto p-3 rounded-lg text-sm appearance-none focus:outline-none bg-transparent placeholder:italic`} />
+													</div>
+													<button className="relative -mt-1" type="button" title="Event Date" onClick={() => setIsCalendarOpen(true)}>
+														<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 25 22" strokeWidth={1.5} stroke="currentColor" className="h-7 mx-auto">
+															<path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+														</svg>
+													</button>
 												</div>
-												<button className="relative -mt-1 col-span-1 justify-self-end" type="button" title="Event Date" onClick={() => setIsCalendarOpen(true)}>
-													<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="2 0 22 22" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
-														<path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-													</svg>
-												</button>
+												<ErrorMessage name="eventDate">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 											</div>
-											<ErrorMessage name="eventDate">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
+											<CalendarModal isCalendarOpen={isCalendarOpen} setFunction={setIsCalendarOpen} fieldName="eventDate" dayProps={dayPickerProps} setDateField={setSelected} />
 										</div>
-										<CalendarModal isCalendarOpen={isCalendarOpen} setFunction={setIsCalendarOpen} fieldName="eventDate" dayProps={dayPickerProps} setDateField={setSelected} />
-									</div>
-									<div className="grid grid-flow-col space-x-6">
-										<div>
-											<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.eventStartTime && touched.eventStartTime ? `border-red-500` : ""} `}>
+										<div className="col-start-7 col-span-2">
+											<div className={`relative border h-12 rounded-lg focus-within:border-blue-500 ${errors.eventStartTime && touched.eventStartTime ? `border-red-500` : ""} `}>
 												<Field>
 													{({ form }: FieldProps) => (
 														<TimePicker
-															className="h-full w-full placeholder:italic"
+															className="h-full placeholder:italic"
 															use12Hours
 															value={startTime}
 															minuteStep={15}
-															showNow={false}
+															showNow={true}
 															defaultValue={startTime}
 															format={"h:mm A"}
 															onSelect={(time) => {
@@ -309,12 +370,12 @@ const NewEvent: React.FC = () => {
 											</div>
 											<ErrorMessage name="eventStartTime">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 										</div>
-										<div>
-											<div className={`relative border-2 rounded-lg focus-within:border-blue-500 ${errors.eventEndTime && touched.eventEndTime ? `border-red-500` : ""} `}>
+										<div className="col-span-2 col-start-9">
+											<div className={`relative border h-12 rounded-lg focus-within:border-blue-500 ${errors.eventEndTime && touched.eventEndTime ? `border-red-500` : ""} `}>
 												<Field>
 													{({ form }: FieldProps) => (
 														<TimePicker
-															className="h-full w-full placeholder:italic"
+															className="h-full placeholder:italic"
 															use12Hours
 															value={endTime}
 															minuteStep={15}

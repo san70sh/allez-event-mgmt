@@ -1,8 +1,8 @@
 import { withAuthenticationRequired } from "@auth0/auth0-react";
 import LoadingSpinner from "./Loading";
 import { ComponentType } from "react";
-import { ActionType } from "../@types/global";
-import { Location, useLocation } from "react-router-dom";
+// import { ActionType } from "../@types/global";
+// import { Location, useLocation } from "react-router-dom";
 
 // type ActionProps = {
 //     type: ActionType | undefined
