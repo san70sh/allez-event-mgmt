@@ -61,6 +61,13 @@ const EventDetail = () => {
 					<p>
 						Price: $ <strong>{eventDat?.price}</strong>
 					</p>
+					{/* <div className="grid grid-flow-col space-x-5">
+						{user && eventDat && user.sub == eventDat.hostId ? (
+							<button className="bg-red-600 py-2 px-auto rounded shadow-red-800 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300" onClick={() => navigate(`/events/${eventId}/modify`, { state: { type: ActionType.EDIT, eventId: eventDat._id } })}>
+								Modify Event
+							</button>
+						) : {eventDat.price == 0 ? (<button className="bg-orange-400 py-2 px-auto rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300">RSVP</button>) : (<button className="bg-orange-400 py-2 px-auto rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300">Pay</button>)}}
+					</div> */}
 					<div className="grid grid-flow-col space-x-5">
 						{eventDat && eventDat.price == 0 ? <button className="bg-orange-400 py-2 px-auto rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300">RSVP</button> : <button className="bg-orange-400 py-2 px-auto rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300">Pay</button>}
 						{user && eventDat && user.sub == eventDat.hostId ? (

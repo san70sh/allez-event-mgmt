@@ -4,6 +4,7 @@ import { collections, events, images } from "../config/mongoCollections";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 import users from "./users";
+import payments from "./payments";
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
   name: joi.string().required(),
@@ -33,6 +34,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
   hostId: joi.string().required(),
+  evt_stripeid: joi.string().optional(),
   cohostArr: joi.array(),
   attendeesArr: joi.array(),
   description: joi.string().required(),
@@ -61,7 +63,9 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 };
 
 async function createEvent(eventDetails: IEvent): Promise<IEvent> {
+  console.log(eventDetails)
   await eventValidationSchema.validateAsync(eventDetails);
+  console.log("Completed Data Validation")
   let authId: string = eventDetails.hostId.split("|")[1];
   validityCheck(authId, undefined);
 
@@ -69,6 +73,8 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     name: eventDetails.name.trim(),
     category: eventDetails.category,
     hostId: eventDetails.hostId,
+    evt_stripeid: undefined,
+    payment_url: undefined,
     venue: {
       address: eventDetails.venue.address.trim(),
       city: eventDetails.venue.city.trim(),
@@ -105,33 +111,47 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     ],
   });
   if (!existingEvent) {
-    let insertedEvent = await collections.events?.insertOne(newEvent);
-    if (insertedEvent?.acknowledged == false) {
-      let err: ErrorWithStatus = {
-        message: "Unable to register event",
-        status: 500,
-      };
-      throw err;
-    } else {
-      if (insertedEvent?.insertedId) {
-        let authId: string = newEvent.hostId.split("|")[1];
-        let updatedUser = await users.addHostedEvents(authId, insertedEvent.insertedId.toString());
-        if (updatedUser) {
-          return getEventById(insertedEvent?.insertedId.toString());
+    let evt_stripeid = await payments.addEvent(newEvent)
+    if(evt_stripeid) {
+      newEvent.evt_stripeid = evt_stripeid
+      if (newEvent.price > 0) {
+        let stripeRes = await payments.addEventRegFee(newEvent.evt_stripeid, newEvent.price)
+        console.log(stripeRes)
+      }
+      let insertedEvent = await collections.events?.insertOne(newEvent);
+      if (insertedEvent?.acknowledged == false) {
+        let err: ErrorWithStatus = {
+          message: "Unable to register event",
+          status: 500,
+        };
+        throw err;
+      } else {
+        if (insertedEvent?.insertedId) {
+          let authId: string = newEvent.hostId.split("|")[1];
+          let updatedUser = await users.addHostedEvents(authId, insertedEvent.insertedId.toString());
+          if (updatedUser) {
+            return getEventById(insertedEvent?.insertedId.toString());
+          } else {
+            let err: ErrorWithStatus = {
+              message: "Unable to update event in user",
+              status: 400,
+            };
+            throw err;
+          }
         } else {
           let err: ErrorWithStatus = {
-            message: "Unable to update event in user",
-            status: 400,
+            message: "Unable to retrieve eventId",
+            status: 404,
           };
           throw err;
         }
-      } else {
-        let err: ErrorWithStatus = {
-          message: "Unable to retrieve eventId",
-          status: 404,
-        };
-        throw err;
       }
+    } else {
+      let err: ErrorWithStatus = {
+        message: "Unable to add event to Stripe",
+        status: 400,
+      };
+      throw err;
     }
   } else {
     let err: ErrorWithStatus = {
@@ -171,6 +191,8 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     name: eventDetails.name.trim(),
     category: eventDetails.category,
     hostId: eventDetails.hostId,
+    evt_stripeid: eventDetails.evt_stripeid,
+    payment_url: eventDetails.payment_url,
     venue: {
       address: eventDetails.venue.address.trim(),
       city: eventDetails.venue.city.trim(),
@@ -208,6 +230,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       };
       throw err;
     } else {
+      let updated_stripeEvt = await payments.modifyEvent(modifiedEvent)
       let updatedEvent = await collections.events?.updateOne(
         { _id: new ObjectId(eventId) },
         {
@@ -291,21 +314,6 @@ async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: number }> 
       eventsData: [],
       count: 0,
     };
-  }
-}
-
-async function populateEventImages(imageFileName: string): Promise<{imageBlob: GridFSBucketReadStream, type: string | undefined}> {
-  let storage = await images();
-  if (storage) {
-    let imageFind = await storage.find({filename: imageFileName}).toArray()
-    const loadImage = storage.openDownloadStreamByName(imageFileName)
-    return {imageBlob: loadImage, type: imageFind[0].contentType}
-  } else {
-    let err: ErrorWithStatus = {
-      message: "Unable to find image in database",
-      status: 500,
-    };
-    throw err;
   }
 }
 
@@ -517,6 +525,5 @@ export default {
   removeCohost,
   addAttendee,
   removeAttendee,
-  populateEventImages,
   deleteAllEventsOfHost,
 };

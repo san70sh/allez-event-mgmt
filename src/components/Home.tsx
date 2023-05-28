@@ -21,18 +21,14 @@ const events: React.FC = () => {
       if (eventData.data) {
         let events = eventData.data.map(async (event) => {
           if(event.eventImg) {
-            let eventImage = await axios.get(`http://localhost:3000/events/images/${event.eventImg}`, {
-              responseType: 'blob'
-            })
-            if(eventImage && eventImage.data) {
-              event.eventImg = URL.createObjectURL(eventImage.data)
-            }
+            let imageSrc = `https://d3noxwp5lu0fvc.cloudfront.net/${event.eventImg}`
+            event.eventImg = imageSrc
           }
         })
         await Promise.all(events)
-        setLoading(false);
-        setDisplayedEvents(eventData.data);
       }
+      setLoading(false);
+      setDisplayedEvents(eventData.data);
     };
     fetchEventList();
   }, []);

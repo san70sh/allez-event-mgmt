@@ -26,7 +26,7 @@ export interface EventResponse {
 
 
 export interface EventValues {
-	eventImg: Blob | undefined;
+	eventImg: string | undefined;
 	name: string;
 	category: string[];
 	price: number;

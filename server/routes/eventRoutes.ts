@@ -37,6 +37,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
     // },
   },
   eventImg: joi.optional(),
+  evt_stripeid: joi.string().optional(),
   bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
@@ -52,14 +53,16 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
 
 router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest, res: express.Response) => {
   try {
-
-    const { body, auth, file } = req;
+    const { body, auth } = req;
+    const file = req.file as Express.MulterS3.File
     let eventDetails = body;
     if (auth && auth.sub) {
       let newEvent: IEvent = {
         name: xss(eventDetails.name.trim()),
         category: eventDetails.category,
         hostId: xss(eventDetails.hostId),
+        evt_stripeid: undefined,
+        payment_url: undefined,
         venue: {
           address: xss(eventDetails.venue.address.trim()),
           city: xss(eventDetails.venue.city.trim()),
@@ -74,18 +77,18 @@ router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest,
         minAge: Number(xss(eventDetails.minAge)),
         price: Number(xss(eventDetails.price)),
         description: xss(eventDetails.description),
-        eventImg: file?.filename!,
+        eventImg: file?.key,
         eventDate: xss(eventDetails.eventDate),
         eventStartTime: xss(eventDetails.eventStartTime),
         eventEndTime: xss(eventDetails.eventEndTime),
         totalSeats: Number(xss(eventDetails.totalSeats)),
         bookedSeats: Number(xss(eventDetails.bookedSeats)),
         cohostArr: [],
-        attendeesArr: [],
+        attendeesArr: []
       };
 
       await eventValidationSchema.validateAsync(newEvent);
-
+      console.log("Completed Validation")
       let createdEvent: IEvent | undefined = await events.createEvent(newEvent);
       if (createdEvent && createdEvent._id) {
         return res.status(200).send(createdEvent);
@@ -106,7 +109,8 @@ router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest,
 
 router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequest, res: express.Response) => {
   try {
-    const { body, auth, file } = req;
+    const { body, auth } = req;
+    const file = req.file as Express.MulterS3.File
     let event = body;
     let eventId: string = req.params.eventId;
     eventId = xss(eventId);
@@ -125,6 +129,8 @@ router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequ
         category: event.category,
         price: event.price,
         hostId: event.hostId,
+        evt_stripeid: event.evt_stripeid,
+        payment_url: event.payment_url,
         minAge: event.minAge,
         description: event.description,
         eventDate: event.eventDate,
@@ -134,7 +140,7 @@ router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequ
         eventEndTime: event.eventEndTime,
         cohostArr: event.cohostArr,
         attendeesArr: event.attendeesArr,
-        eventImg: file?.filename!,
+        eventImg: file?.key!,
         venue: {
           address: event.venue.address,
           city: event.venue.city,
@@ -147,7 +153,6 @@ router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequ
           // },
         },
       };
-
       await eventValidationSchema.validateAsync(event);
       let updatedUser: IEvent | undefined = await events.modifyEvent(eventId, modifiedEvent);
       if (updatedUser) {
@@ -192,21 +197,6 @@ router.get("/:eventId", async (req: express.Request, res: express.Response) => {
     return res.status(e.status).send(e.message);
   }
 });
-
-router.get("/images/:imageId", async(req: express.Request, res: express.Response) => {
-  try {
-    let id: string = xss(req.params.imageId);
-    let {imageBlob, type} = await events.populateEventImages(id);
-    if (imageBlob !== null && type) {
-      res.setHeader("Content-Type", type)
-      imageBlob.pipe(res)
-
-    }
-  } catch (e: any) {
-    console.log(e)
-    return res.status(e.status).send(e.message);
-  }
-})
 
 router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {

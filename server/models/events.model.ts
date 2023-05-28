@@ -14,6 +14,8 @@ export default interface IEvent {
     bookedSeats : number,
     minAge: number,
     hostId : string,
+    evt_stripeid: string | undefined,
+    payment_url: string | undefined,
     cohostArr ?: string[],
     attendeesArr ?: string[],
     venue: {

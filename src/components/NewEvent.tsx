@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { MouseEventHandler, useEffect, useState } from "react";
 import { useInput } from "react-day-picker";
 import * as yup from "yup";
 import { ErrorMessage, Field, FieldProps, Form, Formik, FormikHelpers } from "formik";
@@ -78,11 +78,8 @@ const eventSchema = yup.object().shape({
 		}
 	}).test("size", "File Size Exceeded", function(val) {
 		if(val) {
-			if(val.size < 70000000) {
-				return true
-			} else {
-				return false
-			}
+			const max_size = 10 * 1024 * 1024;
+			return val.size <= max_size
 		} else {
 			return true
 		}
@@ -119,12 +116,12 @@ const NewEvent: React.FC = () => {
 		defaultSelected: initVal.eventDate,
 	});
 
-	const onImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		if (event.target.files && event.target.files[0]) {
-			setImageURL(URL.createObjectURL(event.target.files[0]));
-			setImage(event.target.files[0]);
-		}
-	};
+	const handleImgRemove = (event: React.MouseEvent<HTMLButtonElement>) => {
+		event.preventDefault()
+		console.log(imageURL)
+		setImageURL("")
+		setImage(undefined)
+	}
 
 	useEffect(() => {
 		if (eventId) {
@@ -132,17 +129,7 @@ const NewEvent: React.FC = () => {
 				const eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eId}`);
 				if (eventDetails && eventDetails.status == 200) {
 					const { data } = eventDetails;
-					let imgSrc = ""
-					let eventImage = {data: undefined}
-					if(data.eventImg) {
-						let eventImage = await axios.get(`http://localhost:3000/events/images/${data.eventImg}`, {
-							responseType: 'blob',
-							
-						});
-						if (eventImage && eventImage.data) {
-							imgSrc = URL.createObjectURL(eventImage.data)
-						}
-					}
+					let imgSrc = `https://d3noxwp5lu0fvc.cloudfront.net/${data.eventImg}`
 					let fetchedEvt: Values = {
 						name: data.name,
 						category: data.category,
@@ -154,12 +141,12 @@ const NewEvent: React.FC = () => {
 						eventDate: new Date(data.eventDate),
 						eventStartTime: data.eventStartTime,
 						eventEndTime: data.eventEndTime,
-						eventImg: eventImage.data,
+						eventImg: data.eventImg,
 					};
 					setInitVal(fetchedEvt);
 					setVenueLoc(fetchedEvt.venue);
 					setSelected(new Date(fetchedEvt.eventDate));
-					setImage(eventImage.data);
+					// setImage(eventImage.data);
 					setImageURL(imgSrc)
 					setStartTime(dayjs(fetchedEvt.eventStartTime, "h:mm A"));
 					setEndTime(dayjs(fetchedEvt.eventEndTime, "h:mm A"));
@@ -197,7 +184,6 @@ const NewEvent: React.FC = () => {
 												country: completeAddress[3].trim(),
 												// zip: parseInt(completeAddress[4].trim())
 											},
-											eventImg: image,
 											hostId: user?.sub,
 										},
 										{
@@ -224,7 +210,7 @@ const NewEvent: React.FC = () => {
 												zip: parseInt(completeAddress[4].trim()),
 											},
 											hostId: user?.sub,
-											eventImg: image,
+											// eventImg: image,
 										},
 										{
 											withCredentials: true,
@@ -306,11 +292,25 @@ const NewEvent: React.FC = () => {
 										<div className="grid grid-row-7">
 											<div className="relative grid row-span-5 row-start-1">
 												<div className={`border-2 rounded-lg focus-within:border-blue-500 ${errors.eventImg && touched.eventImg ? `border-red-500` : ""} `}>
-													<label htmlFor="eventImg">
-														<img src={upload} alt="upload icon" className="w-7 h-7 mt-1" />
-														<input type="file" accept="image/*" id="eventImg" name="eventImg" onChange={onImageChange} hidden />
-														{imageURL && <img src={imageURL} alt="preview image" className="w-3/6 h-3/6 mx-auto" />}
-													</label>
+													<Field name="eventImg">
+														{({field, form}: FieldProps) => (
+															<label htmlFor="eventImg">
+																{!imageURL && <img src={upload} alt="upload icon" className="w-7 h-7 mt-1" />}
+																<input type="file" accept="image/*" id="eventImg" name="eventImg" onChange={(event) => {
+																	console.log(event)
+																	if(event.target.files) {
+																		console.log(event.target.files[0])
+																		form.setFieldValue("eventImg", event.target.files[0])
+																		setImageURL(URL.createObjectURL(event.target.files[0]))
+																	}
+																	}} hidden />
+																{imageURL && <div>
+																	<img src={imageURL} alt="preview image" className="w-3/6 h-3/6 mx-auto my-3" />
+																	<button className="bg-red-500 border px-5 w-full rounded-lg" onClick={handleImgRemove}>Remove</button>
+																	</div>}
+															</label>
+														)}
+													</Field>
 												</div>
 												<ErrorMessage name="eventImg">{(msg) => <div className="text-red-600 text-sm text-center mt-1">{msg}</div>}</ErrorMessage>
 											</div>
