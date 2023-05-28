@@ -11,7 +11,7 @@ const events: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   let card: JSX.Element[] = [];
-
+  
   useEffect(() => {
     let fetchEventList = async () => {
       setLoading(true);

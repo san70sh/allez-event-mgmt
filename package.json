@@ -2,15 +2,15 @@
   "name": "root",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "description": "Event Management Server",
   "main": "app.js",
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "cd client && npm run dev",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "server": "cd server && nodemon app.ts",
+    "server": "nodemon app.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
