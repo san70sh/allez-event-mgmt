@@ -1,10 +1,10 @@
 import joi from "joi";
 import { GridFSBucketReadStream, ObjectId } from "mongodb";
-import { collections, events, images } from "../config/mongoCollections";
+import { collections, events, images } from "../config/mongoCollections.js";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
-import users from "./users";
-import payments from "./payments";
+import users from "./users.js";
+import payments from "./payments.js";
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
   name: joi.string().required(),

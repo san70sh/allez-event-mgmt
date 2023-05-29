@@ -2,13 +2,13 @@ import express from "express";
 import joi from "joi";
 import { ObjectId } from "mongodb";
 import xss from "xss";
-import events from "../data/events";
-import users from "../data/users";
+import events from "../data/events.js";
+import users from "../data/users.js";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
-import { checkJwt } from "../middlewares/auth";
+import { checkJwt } from "../middlewares/auth.js";
 import { Request as JWTRequest } from "express-jwt";
-import upload from "../middlewares/upload";
+import upload from "../middlewares/upload.js";
 
 const router = express.Router();
 

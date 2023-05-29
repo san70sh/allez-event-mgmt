@@ -1,11 +1,11 @@
 import express from "express";
 import IUser from "../models/users.model";
 import xss from "xss";
-import users from "../data/users";
+import users from "../data/users.js";
 import { ErrorWithStatus } from "../types/global";
 import joi from "joi";
 // import jwtAuthz from "express-jwt-authz";
-import { checkJwt } from "../middlewares/auth";
+import { checkJwt } from "../middlewares/auth.js";
 import { Request as JWTRequest } from "express-jwt";
 
 

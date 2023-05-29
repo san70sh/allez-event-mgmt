@@ -1,5 +1,5 @@
 import express, { Application } from "express";
-import configRoutes from "./routes";
+import configRoutes from "./routes/index.js";
 import cors from "cors";
 import { join } from "path";
 // import dbConnection from "./config/mongoConnection";
@@ -16,9 +16,9 @@ const buildApp = async (app: Application) => {
   app.use(express.urlencoded({ extended: true }));
   app.use(cors({ origin: true, credentials: true }));
 
-  app.get("/auth_config.json", (req, res) => {
-    res.sendFile(join(__dirname, "auth_config.json"));
-  });
+  // app.get("/auth_config.json", (req, res) => {
+  //   res.sendFile(join(__dirname, "auth_config.json"));
+  // });
 
   app.use("*", (req, res, next) => {
     console.log("Incoming URL: " + req.url + " " + req.method + " " + new Date() + " ");
