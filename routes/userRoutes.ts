@@ -5,7 +5,7 @@ import users from "../data/users";
 import { ErrorWithStatus } from "../types/global";
 import joi from "joi";
 // import jwtAuthz from "express-jwt-authz";
-import { checkJwt } from "../auth/auth";
+import { checkJwt } from "../middlewares/auth";
 import { Request as JWTRequest } from "express-jwt";
 
 

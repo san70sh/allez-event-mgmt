@@ -1,9 +1,10 @@
 import joi from "joi";
-import { ObjectId } from "mongodb";
-import { collections, events } from "../config/mongoCollections";
+import { GridFSBucketReadStream, ObjectId } from "mongodb";
+import { collections, events, images } from "../config/mongoCollections";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 import users from "./users";
+import payments from "./payments";
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
   name: joi.string().required(),
@@ -28,11 +29,13 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
     //   long: joi.number().required(),
     // },
   },
-  eventImgs: joi.optional(),
+  eventImg: joi.optional(),
   bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
   hostId: joi.string().required(),
+  evt_stripeid: joi.string().optional(),
+  payment_url: joi.string(),
   cohostArr: joi.array(),
   attendeesArr: joi.array(),
   description: joi.string().required(),
@@ -61,7 +64,9 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
 };
 
 async function createEvent(eventDetails: IEvent): Promise<IEvent> {
+  console.log(eventDetails)
   await eventValidationSchema.validateAsync(eventDetails);
+  console.log("Completed Data Validation")
   let authId: string = eventDetails.hostId.split("|")[1];
   validityCheck(authId, undefined);
 
@@ -69,6 +74,8 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     name: eventDetails.name.trim(),
     category: eventDetails.category,
     hostId: eventDetails.hostId,
+    evt_stripeid: undefined,
+    payment_url: undefined,
     venue: {
       address: eventDetails.venue.address.trim(),
       city: eventDetails.venue.city.trim(),
@@ -83,7 +90,7 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
-    eventImgs: eventDetails.eventImgs,
+    eventImg: eventDetails.eventImg,
     eventDate: eventDetails.eventDate,
     eventStartTime: eventDetails.eventStartTime,
     eventEndTime: eventDetails.eventEndTime,
@@ -105,33 +112,46 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     ],
   });
   if (!existingEvent) {
-    let insertedEvent = await collections.events?.insertOne(newEvent);
-    if (insertedEvent?.acknowledged == false) {
-      let err: ErrorWithStatus = {
-        message: "Unable to register event",
-        status: 500,
-      };
-      throw err;
-    } else {
-      if (insertedEvent?.insertedId) {
-        let authId: string = newEvent.hostId.split("|")[1];
-        let updatedUser = await users.addHostedEvents(authId, insertedEvent.insertedId.toString());
-        if (updatedUser) {
-          return getEventById(insertedEvent?.insertedId.toString());
+    let stripe_eventParams = await payments.addEvent(newEvent)
+    if (stripe_eventParams) {
+
+      newEvent.evt_stripeid = stripe_eventParams.eventId;
+      newEvent.payment_url = stripe_eventParams.payment_url;
+
+      let insertedEvent = await collections.events?.insertOne(newEvent);
+      if (insertedEvent?.acknowledged == false) {
+        let err: ErrorWithStatus = {
+          message: "Unable to register event",
+          status: 500,
+        };
+        throw err;
+      } else {
+        if (insertedEvent?.insertedId) {
+          let authId: string = newEvent.hostId.split("|")[1];
+          let updatedUser = await users.addHostedEvents(authId, insertedEvent.insertedId.toString());
+          if (updatedUser) {
+            return getEventById(insertedEvent?.insertedId.toString());
+          } else {
+            let err: ErrorWithStatus = {
+              message: "Unable to update event in user",
+              status: 400,
+            };
+            throw err;
+          }
         } else {
           let err: ErrorWithStatus = {
-            message: "Unable to update event in user",
-            status: 400,
+            message: "Unable to retrieve eventId",
+            status: 404,
           };
           throw err;
         }
-      } else {
-        let err: ErrorWithStatus = {
-          message: "Unable to retrieve eventId",
-          status: 404,
-        };
-        throw err;
       }
+    } else {
+      let err: ErrorWithStatus = {
+        message: "Unable to add event to Stripe",
+        status: 400,
+      };
+      throw err;
     }
   } else {
     let err: ErrorWithStatus = {
@@ -150,7 +170,6 @@ async function getEventById(eventId: string): Promise<IEvent> {
   let queryId: ObjectId = new ObjectId(eventId);
 
   let event: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
-
   if (!event) {
     let err: ErrorWithStatus = {
       message: "Unable to find event in database",
@@ -172,6 +191,8 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     name: eventDetails.name.trim(),
     category: eventDetails.category,
     hostId: eventDetails.hostId,
+    evt_stripeid: eventDetails.evt_stripeid,
+    payment_url: eventDetails.payment_url,
     venue: {
       address: eventDetails.venue.address.trim(),
       city: eventDetails.venue.city.trim(),
@@ -186,7 +207,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
     minAge: eventDetails.minAge,
     price: eventDetails.price,
     description: eventDetails.description,
-    eventImgs: eventDetails.eventImgs,
+    eventImg: eventDetails.eventImg,
     eventDate: eventDetails.eventDate,
     eventStartTime: eventDetails.eventStartTime,
     eventEndTime: eventDetails.eventEndTime,
@@ -209,6 +230,8 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       };
       throw err;
     } else {
+      let updated_stripeEvt = await payments.modifyEvent(modifiedEvent)
+      
       let updatedEvent = await collections.events?.updateOne(
         { _id: new ObjectId(eventId) },
         {
@@ -216,7 +239,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
             name: modifiedEvent.name,
             category: modifiedEvent.category,
             venue: modifiedEvent.venue,
-            eventImgs: modifiedEvent.eventImgs,
+            eventImg: modifiedEvent.eventImg,
             totalSeats: modifiedEvent.totalSeats,
             price: modifiedEvent.price,
             description: modifiedEvent.description,
@@ -311,7 +334,6 @@ async function deleteAllEventsOfHost(hostId: string) {
   }
 }
 
-async function addEventImages(eventId: string, imgArr: string[]) {}
 
 async function addCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
   validityCheck(cohostId, eventId);
@@ -504,6 +526,5 @@ export default {
   removeCohost,
   addAttendee,
   removeAttendee,
-  addEventImages,
   deleteAllEventsOfHost,
 };

@@ -6,7 +6,7 @@ import Home from "./components/Home";
 import Navigation from "./components/Navigation";
 import UserProfile from "./components/UserProfile";
 // import { useAuth0 } from "@auth0/auth0-react";
-import "./index.css";
+import '../../index.css';
 import NewEvent from "./components/NewEvent";
 import { Callback } from "./components/Callback";
 import { AuthGuard } from "./components/AuthGuard";

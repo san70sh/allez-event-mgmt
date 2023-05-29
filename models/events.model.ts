@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb"
 
 export default interface IEvent {
     _id ?: ObjectId | string,
-    eventImgs : string[],
+    eventImg : string,
     name : string,
     category : string[],
     price: number,
@@ -14,6 +14,8 @@ export default interface IEvent {
     bookedSeats : number,
     minAge: number,
     hostId : string,
+    evt_stripeid: string | undefined,
+    payment_url: string | undefined,
     cohostArr ?: string[],
     attendeesArr ?: string[],
     venue: {

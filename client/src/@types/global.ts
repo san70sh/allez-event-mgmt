@@ -24,8 +24,9 @@ export interface EventResponse {
 
 }
 
+
 export interface EventValues {
-	// eventImgs: string[];
+	eventImg: string | undefined;
 	name: string;
 	category: string[];
 	price: number;
