@@ -34,7 +34,7 @@ const buildApp = async (app: Application) => {
   })
 
   configRoutes(app);
-  app.listen(process.env.PORT || 3000, () => {
+  app.listen(process.env.PORT || 4000, () => {
     console.log("We've now got a server!");
     // console.log('Your routes will be running on http://localhost:3000');
   });
