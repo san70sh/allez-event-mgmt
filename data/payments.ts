@@ -324,121 +324,121 @@ async function getEventPrice(eventId: string): Promise<string> {
     }
 }
 
-async function addCustomer(customer: IUser) {
-    let newCustomer: Stripe.CustomerCreateParams = {
-        name: `${customer.firstName} ${customer.lastName}`,
-        email: customer.email,
-        phone: customer.phone.toString(),
-        metadata: {
-            gender: customer.gender,
-        },
+// async function addCustomer(customer: IUser) {
+//     let newCustomer: Stripe.CustomerCreateParams = {
+//         name: `${customer.firstName} ${customer.lastName}`,
+//         email: customer.email,
+//         phone: customer.phone.toString(),
+//         metadata: {
+//             gender: customer.gender,
+//         },
 
-        shipping: {
-            name: `${customer.firstName} ${customer.lastName}`,
-            address: {
-                city: customer.address.city,
-                country: customer.address.country,
-                state: customer.address.state,
-                postal_code: customer.address.postal_code.toString()
-            },
-            phone: customer.phone.toString()
-        }
-    }
+//         shipping: {
+//             name: `${customer.firstName} ${customer.lastName}`,
+//             address: {
+//                 city: customer.address.city,
+//                 country: customer.address.country,
+//                 state: customer.address.state,
+//                 postal_code: customer.address.postal_code.toString()
+//             },
+//             phone: customer.phone.toString()
+//         }
+//     }
 
-    let insertedCustomer = await stripe.customers.create(newCustomer)
-    return insertedCustomer;
-}
+//     let insertedCustomer = await stripe.customers.create(newCustomer)
+//     return insertedCustomer;
+// }
 
-async function searchCustomer(email: string) {
-    let emailRegex: RegExp = /^\S+@\S+\.\S+$/;
-    if (!email) {
-        throw [400, "Please enter an email"];
-    } else if (email.trim().length === 0 || !emailRegex.test(email)) {
-        throw [400, "Invalid Email"];
-    } else {
-        try {
-            let { data } = await stripe.customers.search({ query: `email:"${email}"` })
-            let idList: string[] = [];
-            if (data && data.length > 0) {
-                data.forEach(e => {
-                    idList.push(e.id);
-                })
-                return idList;
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-}
-async function removeCustomer(customerID: string) {
-    if (!customerID) {
-        throw [400, "Invalid Customer Details"];
-    } else {
-        let customer = await stripe.customers.retrieve(customerID);
-        if (customer && !Object.keys(customer).includes('deleted')) {
-            let delCustomer = await stripe.customers.del(customerID);
-            return delCustomer.deleted;
-        }
-    }
-}
+// async function searchCustomer(email: string) {
+//     let emailRegex: RegExp = /^\S+@\S+\.\S+$/;
+//     if (!email) {
+//         throw [400, "Please enter an email"];
+//     } else if (email.trim().length === 0 || !emailRegex.test(email)) {
+//         throw [400, "Invalid Email"];
+//     } else {
+//         try {
+//             let { data } = await stripe.customers.search({ query: `email:"${email}"` })
+//             let idList: string[] = [];
+//             if (data && data.length > 0) {
+//                 data.forEach(e => {
+//                     idList.push(e.id);
+//                 })
+//                 return idList;
+//             }
+//         } catch (e) {
+//             console.log(e);
+//         }
+//     }
+// }
+// async function removeCustomer(customerID: string) {
+//     if (!customerID) {
+//         throw [400, "Invalid Customer Details"];
+//     } else {
+//         let customer = await stripe.customers.retrieve(customerID);
+//         if (customer && !Object.keys(customer).includes('deleted')) {
+//             let delCustomer = await stripe.customers.del(customerID);
+//             return delCustomer.deleted;
+//         }
+//     }
+// }
 
-async function createSession(eventId: string, custId: string) {
+// async function createSession(eventId: string, custId: string) {
 
-    if (!ObjectId.isValid(eventId.toString())) throw [400, "Event ID Is Invalid"]
-    if (!ObjectId.isValid(custId.toString())) throw [400, "User ID Is Invalid"]
-    let userData = await usersdata.getUserById(custId.toString().trim())
-    let dob = userData.dateOfBirth
-    let ageInYears = new Date().getFullYear() - new Date(dob).getFullYear();
-    let eventId_objId = new ObjectId(eventId.toString().trim())
-    await events();
-    let requestedEvent = await collections.events?.findOne({ _id: eventId_objId })
+//     if (!ObjectId.isValid(eventId.toString())) throw [400, "Event ID Is Invalid"]
+//     if (!ObjectId.isValid(custId.toString())) throw [400, "User ID Is Invalid"]
+//     let userData = await usersdata.getUserById(custId.toString().trim())
+//     let dob = userData.dateOfBirth
+//     let ageInYears = new Date().getFullYear() - new Date(dob).getFullYear();
+//     let eventId_objId = new ObjectId(eventId.toString().trim())
+//     await events();
+//     let requestedEvent = await collections.events?.findOne({ _id: eventId_objId })
 
-    if (!requestedEvent) throw [400, "Event Not Found"]
-    if (ageInYears < requestedEvent?.minAge) throw [400, "You Do Not Meet The Minimum Age Requirements To Attend This Event."]
-    if (requestedEvent?.totalSeats === requestedEvent?.bookedSeats) {
-        throw [400, 'Event Is Full Already']
-    }
-    if (custId === requestedEvent?.hostId) {
-        throw [400, "You're the Host"]
-    }
-    if (requestedEvent?.cohostArr?.includes(custId)) {
-        throw [400, "You're A Cohost"]
-    }
-    else {
-        if (userData.attendEventArray.includes(eventId)) {
-            throw [400, "You Have Already Registered For The Event"]
-        } else {
-            try {
-                const eventPriceID: string = await getEventPrice(eventId);
-                await users();
-                let user = await collections.users?.findOne({ _id: new ObjectId(custId) });
-                if (user) {
-                    let custEmail = user.email;
-                    // let custId = await searchCustomer(custEmail);
-                    // if(custId && custId.length > 0) {}
-                    const session: Stripe.Response<Stripe.Checkout.Session> = await stripe.checkout.sessions.create({
-                        success_url: "http://localhost:5173/",
-                        cancel_url: "http://localhost:3000/error",
-                        line_items: [
-                            { price: eventPriceID, quantity: 1 }
-                        ],
-                        customer_creation: "always",
-                        payment_method_types: ["card"],
-                        mode: "payment"
-                    })
-                    return session.url;
-                }
+//     if (!requestedEvent) throw [400, "Event Not Found"]
+//     if (ageInYears < requestedEvent?.minAge) throw [400, "You Do Not Meet The Minimum Age Requirements To Attend This Event."]
+//     if (requestedEvent?.totalSeats === requestedEvent?.bookedSeats) {
+//         throw [400, 'Event Is Full Already']
+//     }
+//     if (custId === requestedEvent?.hostId) {
+//         throw [400, "You're the Host"]
+//     }
+//     if (requestedEvent?.cohostArr?.includes(custId)) {
+//         throw [400, "You're A Cohost"]
+//     }
+//     else {
+//         if (userData.attendEventArray.includes(eventId)) {
+//             throw [400, "You Have Already Registered For The Event"]
+//         } else {
+//             try {
+//                 const eventPriceID: string = await getEventPrice(eventId);
+//                 await users();
+//                 let user = await collections.users?.findOne({ _id: new ObjectId(custId) });
+//                 if (user) {
+//                     let custEmail = user.email;
+//                     // let custId = await searchCustomer(custEmail);
+//                     // if(custId && custId.length > 0) {}
+//                     const session: Stripe.Response<Stripe.Checkout.Session> = await stripe.checkout.sessions.create({
+//                         success_url: "http://localhost:5173/",
+//                         cancel_url: "http://localhost:3000/error",
+//                         line_items: [
+//                             { price: eventPriceID, quantity: 1 }
+//                         ],
+//                         customer_creation: "always",
+//                         payment_method_types: ["card"],
+//                         mode: "payment"
+//                     })
+//                     return session.url;
+//                 }
 
-            } catch (e) {
-                console.log(e);
-            }
-        }
-    }
-}
+//             } catch (e) {
+//                 console.log(e);
+//             }
+//         }
+    // }
+// }
 
-async function expireSession() {
+// async function expireSession() {
 
-}
+// }
 
 
 // async function paymentMethod (cardDetails: Card, address: Address) {
@@ -478,12 +478,12 @@ async function expireSession() {
 export default {
     addEvent,
     getEvent,
+    modifyEvent,
     removeEvent,
     addEventRegFee,
     updateEventRegFee,
-    addCustomer,
-    removeCustomer,
+    // addCustomer,
+    // removeCustomer,
     // createPaymentIntent,
-    modifyEvent,
-    createSession
+    // createSession
 }
