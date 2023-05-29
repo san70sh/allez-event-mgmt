@@ -15,7 +15,7 @@ const events: React.FC = () => {
   useEffect(() => {
     let fetchEventList = async () => {
       setLoading(true);
-      let eventData: AxiosResponse<IEvent[]> = await axios.get("/events/", {
+      let eventData: AxiosResponse<IEvent[]> = await axios.get("/api/events/", {
         withCredentials: true,
       });
       if (eventData.data) {
