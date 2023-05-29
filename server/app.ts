@@ -1,8 +1,8 @@
 import express, { Application } from "express";
-import configRoutes from "./routes";
+import configRoutes from "./routes/index.js";
 import cors from "cors";
 import { join } from "path";
-import dbConnection from "./config/mongoConnection";
+// import dbConnection from "./config/mongoConnection";
 import { MongoClient, ServerApiVersion } from "mongodb";
 import dotenv from "dotenv"
 
@@ -15,10 +15,10 @@ const buildApp = async (app: Application) => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cors({ origin: true, credentials: true }));
-
-  app.get("/auth_config.json", (req, res) => {
-    res.sendFile(join(__dirname, "auth_config.json"));
-  });
+  console.log("Test")
+  // app.get("/auth_config.json", (req, res) => {
+  //   res.sendFile(join(__dirname, "auth_config.json"));
+  // });
 
   app.use("*", (req, res, next) => {
     console.log("Incoming URL: " + req.url + " " + req.method + " " + new Date() + " ");
@@ -34,9 +34,9 @@ const buildApp = async (app: Application) => {
   })
 
   configRoutes(app);
-  app.listen(3000, () => {
+  app.listen(process.env.PORT || 3000, () => {
     console.log("We've now got a server!");
-    console.log('Your routes will be running on http://localhost:3000');
+    // console.log('Your routes will be running on http://localhost:3000');
   });
 
 }

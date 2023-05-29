@@ -1,4 +1,4 @@
-import dbConnection from "./mongoConnection";
+import dbConnection from "./mongoConnection.js";
 import IUser from "../models/users.model";
 import {Collection, GridFSBucket} from "mongodb";
 import IEvent from "../models/events.model";

@@ -1,6 +1,6 @@
 import IUser from "../models/users.model";
 import { ErrorWithStatus } from "../types/global";
-import { collections, events, users } from "../config/mongoCollections";
+import { collections, events, users } from "../config/mongoCollections.js";
 import joi from "joi";
 import { ObjectId, UpdateResult, WithoutId } from "mongodb";
 import IEvent from "../models/events.model";

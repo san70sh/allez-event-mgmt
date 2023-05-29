@@ -9,10 +9,13 @@ export const AuthProvider = (): JSX.Element | null => {
   const redirect_uri = import.meta.env.VITE_AUTH0_CALLBACK_URL;
   const navigate = useNavigate();
   if (!(domain && clientId)) {
+    console.log("TestAuth")
     return null;
   }
 
   const onRedirectCallback = (appState?: AppState) => {
+    console.log(appState?.returnTo)
+    console.log(window.location.pathname)
     navigate(appState?.returnTo || window.location.pathname);
   };
   

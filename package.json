@@ -6,11 +6,14 @@
   "main": "app.js",
   "type": "module",
   "exports": "./dist/index.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",
     "dev": "vite",
-    "build": "vite build && tsc",
+    "build": "vite build && cd server && tsc",
     "preview": "vite preview",
     "server": "nodemon --experimental-specifier-resolution=node dist/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -48,7 +51,6 @@
     "jwks-rsa": "^3.0.0",
     "mongodb": "^4.12.1",
     "multer": "^1.4.5-lts.1",
-    "multer-gridfs-storage": "^5.0.2",
     "multer-s3": "^3.0.1",
     "react": "^18.2.0",
     "react-day-picker": "^8.4.1",

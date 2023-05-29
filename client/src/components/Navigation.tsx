@@ -96,6 +96,7 @@ const events = () => {
 
 	const loginFunc = async () => {
 		try {
+			console.log("LoginAuth")
 			loginWithRedirect({scope: "read:current_user", appState: {returnTo: window.location.pathname}});
 		} catch (error) {
 			console.log(error);

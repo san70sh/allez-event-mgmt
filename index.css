@@ -14,6 +14,7 @@ textarea:focus-within ~ label {
   @apply text-blue-500 duration-300;
 }
 
+
 input:not(:focus-within) ~ label,
 textarea:not(:focus-within) ~ label {
   @apply transform duration-300;
