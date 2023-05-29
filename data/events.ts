@@ -111,13 +111,12 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
     ],
   });
   if (!existingEvent) {
-    let evt_stripeid = await payments.addEvent(newEvent)
-    if(evt_stripeid) {
-      newEvent.evt_stripeid = evt_stripeid
-      if (newEvent.price > 0) {
-        let stripeRes = await payments.addEventRegFee(newEvent.evt_stripeid, newEvent.price)
-        console.log(stripeRes)
-      }
+    let stripe_eventParams = await payments.addEvent(newEvent)
+    if (stripe_eventParams) {
+
+      newEvent.evt_stripeid = stripe_eventParams.eventId;
+      newEvent.payment_url = stripe_eventParams.payment_url;
+
       let insertedEvent = await collections.events?.insertOne(newEvent);
       if (insertedEvent?.acknowledged == false) {
         let err: ErrorWithStatus = {
@@ -231,6 +230,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       throw err;
     } else {
       let updated_stripeEvt = await payments.modifyEvent(modifiedEvent)
+      
       let updatedEvent = await collections.events?.updateOne(
         { _id: new ObjectId(eventId) },
         {
