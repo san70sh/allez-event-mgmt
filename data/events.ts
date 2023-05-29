@@ -35,6 +35,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   minAge: joi.number().required(),
   hostId: joi.string().required(),
   evt_stripeid: joi.string().optional(),
+  payment_url: joi.string(),
   cohostArr: joi.array(),
   attendeesArr: joi.array(),
   description: joi.string().required(),

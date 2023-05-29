@@ -38,6 +38,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   },
   eventImg: joi.optional(),
   evt_stripeid: joi.string().optional(),
+  payment_url: joi.string(),
   bookedSeats: joi.number().min(0),
   totalSeats: joi.number().min(0).required(),
   minAge: joi.number().required(),
@@ -55,6 +56,7 @@ router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest,
   try {
     const { body, auth } = req;
     const file = req.file as Express.MulterS3.File
+    console.log(body)
     let eventDetails = body;
     if (auth && auth.sub) {
       let newEvent: IEvent = {

@@ -11,6 +11,8 @@ export default interface IEvent {
     hostId : string,
     cohostArr ?: string[],
     attendeesArr ?: string[],
+    stripeId ?: string,
+    payment_url ?: string,
     venue: {
         address: string,
         city: string,

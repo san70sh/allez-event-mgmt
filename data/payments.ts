@@ -6,6 +6,7 @@ import joi from "joi";
 import { ObjectId } from 'mongodb';
 import usersdata from "./users";
 import { collections, events, users } from "../config/mongoCollections";
+import { ErrorWithStatus } from "../types/global";
 
 dotenv.config();
 
@@ -109,11 +110,12 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
     eventDate: joi.date().required().greater("now"),
     eventStartTime: joi.string().required(),
     eventEndTime: joi.string().required(),
-    evt_stripeid: joi.string().optional()
+    evt_stripeid: joi.string(),
+    payment_url: joi.string()
 });
 
 
-async function addEvent(event: IEvent): Promise<string | null> {
+async function addEvent(event: IEvent): Promise<{eventId: string, payment_url: string} | null> {
 
     await eventValidationSchema.validateAsync(event);
 
@@ -134,9 +136,23 @@ async function addEvent(event: IEvent): Promise<string | null> {
 
     let insertedEvent = await stripe.products.create(newEvent);
     if (insertedEvent) {
-        return insertedEvent.id
+        let eventPrice = await addEventRegFee(insertedEvent.id, event.price)
+        if (eventPrice) {
+            let payment_url = await generatePaymentLink(eventPrice.id)
+            if (payment_url) {
+                return {eventId: insertedEvent.id, payment_url: payment_url}
+            } else {
+                return null
+            }
+        } else {
+            return null
+        }
     } else {
-        return null;
+        let err: ErrorWithStatus = {
+            status: 500,
+            message: "Unable to create event in Stripe"
+        }
+        throw err
     }
 }
 
@@ -256,6 +272,33 @@ async function updateEventRegFee(eventID: string, price: number): Promise<Stripe
         }
     }
 }
+async function generatePaymentLink(priceId: string): Promise<string>{
+    if(!priceId) {
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "Bad Parameters: Invalid PriceID"
+        }
+        throw err
+    } else {
+        let paymentLink = await stripe.paymentLinks.create({
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: 1
+                }
+            ]
+        });
+        if (paymentLink) {
+            return paymentLink.url
+        } else {
+            let err: ErrorWithStatus = {
+                status: 500,
+                message: "Unable to generate payment link for event"
+            }
+            throw err
+        }
+    }
+}
 
 async function getEventPrice(eventId: string): Promise<string> {
     if (!eventId) {
@@ -337,9 +380,6 @@ async function removeCustomer(customerID: string) {
             return delCustomer.deleted;
         }
     }
-}
-async function generatePaymentLink() {
-
 }
 
 async function createSession(eventId: string, custId: string) {
