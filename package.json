@@ -6,6 +6,9 @@
   "main": "app.js",
   "type": "module",
   "exports": "./dist/index.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",
