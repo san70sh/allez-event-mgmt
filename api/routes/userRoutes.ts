@@ -155,45 +155,45 @@ router.get("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   }
 });
 
-router.get("/hostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
-  try {
-    const { auth } = req;
-    if (auth && auth.sub) {
-      let authId: string = auth.sub.split("|")[1];
-      let getUserHostedEvents = await users.getHostedEvents(authId);
-      return res.status(200).send(getUserHostedEvents);
+// router.get("/hostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
+//   try {
+//     const { auth } = req;
+//     if (auth && auth.sub) {
+//       let authId: string = auth.sub.split("|")[1];
+//       let getUserHostedEvents = await users.getHostedEvents(authId);
+//       return res.status(200).send(getUserHostedEvents);
 
-    }
-  } catch (e: any) {
-    return res.status(e.status).send(e.message);
-  }
-});
+//     }
+//   } catch (e: any) {
+//     return res.status(e.status).send(e.message);
+//   }
+// });
 
-router.get("/cohostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
-  try {
-    const { auth } = req;
-    if (auth && auth.sub) {
-      let authId: string = auth.sub.split("|")[1];
-      let getUserCohostedEvents = await users.getCohostedEvents(authId);
-      return res.status(200).send(getUserCohostedEvents);
-    }
-  } catch (e: any) {
-    return res.status(e.status).send(e.message);
-  }
-});
+// router.get("/cohostedEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
+//   try {
+//     const { auth } = req;
+//     if (auth && auth.sub) {
+//       let authId: string = auth.sub.split("|")[1];
+//       let getUserCohostedEvents = await users.getCohostedEvents(authId);
+//       return res.status(200).send(getUserCohostedEvents);
+//     }
+//   } catch (e: any) {
+//     return res.status(e.status).send(e.message);
+//   }
+// });
 
-router.get("/registeredEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
-  try {
-    const { auth } = req;
-    if (auth && auth.sub) {
-      let authId: string = auth.sub.split("|")[1];
-      let getUserRegisteredEvents = await users.getRegisteredEvents(authId);
-      return res.status(200).send(getUserRegisteredEvents);
-    }
-  } catch (e: any) {
-    return res.status(e.status).send(e.message);
-  }
-});
+// router.get("/registeredEvents", checkJwt, async (req: JWTRequest, res: express.Response) => {
+//   try {
+//     const { auth } = req;
+//     if (auth && auth.sub) {
+//       let authId: string = auth.sub.split("|")[1];
+//       let getUserRegisteredEvents = await users.getRegisteredEvents(authId);
+//       return res.status(200).send(getUserRegisteredEvents);
+//     }
+//   } catch (e: any) {
+//     return res.status(e.status).send(e.message);
+//   }
+// });
 
 router.delete("/", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
