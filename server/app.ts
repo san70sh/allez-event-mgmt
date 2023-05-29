@@ -2,7 +2,7 @@ import express, { Application } from "express";
 import configRoutes from "./routes";
 import cors from "cors";
 import { join } from "path";
-import dbConnection from "./config/mongoConnection";
+// import dbConnection from "./config/mongoConnection";
 import { MongoClient, ServerApiVersion } from "mongodb";
 import dotenv from "dotenv"
 
