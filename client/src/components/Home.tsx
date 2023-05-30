@@ -11,11 +11,10 @@ const events: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   let card: JSX.Element[] = [];
-  
   useEffect(() => {
     let fetchEventList = async () => {
       setLoading(true);
-      let eventData: AxiosResponse<IEvent[]> = await axios.get("/api/events/", {
+      let eventData: AxiosResponse<IEvent[]> = await axios.get("http://localhost:3000/events/", {
         withCredentials: true,
       });
       if (eventData.data) {

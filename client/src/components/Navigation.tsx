@@ -83,7 +83,7 @@ const events = () => {
 							<div className="flex min-h-full items-center justify-center p-4 text-center w-full">
 								<Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
 									<Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-										<ProfileForm setFunction={setOpenProfileForm} action={0} val={initVal}/>
+										<ProfileForm setFunction={setOpenProfileForm} profileFunc={setIsProfilePresent} action={0} val={initVal}/>
 									</Dialog.Panel>
 								</Transition.Child>
 							</div>
@@ -112,10 +112,17 @@ const events = () => {
 	};
 
 	const hostEvent = () => {
-		if (isProfilePresent) {
+		if (isProfilePresent && isAuthenticated) {
 			navigate("/events/new", {state: {type: ActionType.NEW}});
-		} else {
+		} else if(isAuthenticated){
 			setOpenProfileForm(true);
+		} else {
+			try {
+				console.log("LoginAuth")
+				loginWithRedirect({scope: "read:current_user", appState: {returnTo: window.location.pathname}});
+			} catch (error) {
+				console.log(error);
+			}
 		}
 	};
 

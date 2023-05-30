@@ -56,7 +56,6 @@ router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest,
   try {
     const { body, auth } = req;
     const file = req.file as Express.MulterS3.File
-    console.log(body)
     let eventDetails = body;
     if (auth && auth.sub) {
       let newEvent: IEvent = {
@@ -125,37 +124,45 @@ router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequ
       return;
     }
     if (auth && auth.sub) {
-
+      let existingEvent: IEvent = await events.getEventById(eventId);
+      
       let modifiedEvent: IEvent = {
         name: xss(event.name.trim()),
         category: event.category,
-        price: event.price,
-        hostId: event.hostId,
-        evt_stripeid: event.evt_stripeid,
+        price: Number(xss(event.price)),
+        hostId: xss(event.hostId),
+        evt_stripeid: existingEvent.evt_stripeid,
         payment_url: event.payment_url,
-        minAge: event.minAge,
-        description: event.description,
-        eventDate: event.eventDate,
-        bookedSeats: event.bookedSeats,
-        totalSeats: event.totalSeats,
-        eventStartTime: event.eventStartTime,
-        eventEndTime: event.eventEndTime,
-        cohostArr: event.cohostArr,
-        attendeesArr: event.attendeesArr,
+        minAge: Number(xss(event.minAge)),
+        description: xss(event.description),
+        eventDate: xss(event.eventDate),
+        bookedSeats: Number(xss(event.bookedSeats)),
+        totalSeats: Number(xss(event.totalSeats)),
+        eventStartTime: xss(event.eventStartTime),
+        eventEndTime: xss(event.eventEndTime),
+        cohostArr: existingEvent.cohostArr,
+        attendeesArr: existingEvent.attendeesArr,
         eventImg: file?.key!,
         venue: {
-          address: event.venue.address,
-          city: event.venue.city,
-          state: event.venue.state,
-          country: event.venue.country,
-          zip: event.venue.zip,
+          address: xss(event.venue.address.trim()),
+          city: xss(event.venue.city.trim()),
+          state: xss(event.venue.state.trim()),
+          country: xss(event.venue.country.trim()),
+          zip: Number(xss(event.venue.zip)),
           // geoLocation: {
           //   lat: event.venue.geoLocation.lat,
           //   long: event.venue.geoLocation.long,
           // },
         },
       };
-      await eventValidationSchema.validateAsync(event);
+      if (!req.file) {
+        modifiedEvent.eventImg = existingEvent.eventImg
+      }
+
+      if(modifiedEvent.eventImg !== existingEvent.eventImg) {
+        await events.removeImageFromStorage(existingEvent._id!.toString())
+      }
+      await eventValidationSchema.validateAsync(modifiedEvent);
       let updatedUser: IEvent | undefined = await events.modifyEvent(eventId, modifiedEvent);
       if (updatedUser) {
         return res.status(200).send(updatedUser);
@@ -212,12 +219,12 @@ router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respon
       return res.status(err.status).send(err.message);
     }
     if (auth && auth.sub) {
-      let authId = auth.sub.split("|")[1];
-      let deletedEvent = await events.deleteEvent(id, authId);
+      let deletedEvent = await events.deleteEvent(id, auth.sub);
       if (deletedEvent.deleted) {
+        let authId = auth.sub.split("|")[1]
         let updatedUser = await users.removeHostedEvents(authId, id);
         if (updatedUser) {
-          return res.status(200).send(deletedEvent);
+          return res.status(200).send({deleted: true});
         }
       } else {
         return res.status(400).send({ deleted: false });

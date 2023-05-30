@@ -41,7 +41,9 @@ const s3Storage = multers3({
     },
     contentType: multers3.AUTO_CONTENT_TYPE,
     metadata: (req, file, cb) => {
-        cb(null, {fieldName: file.fieldname})
+        if (file) {
+            cb(null, {fieldName: file.fieldname})
+        }
     }
 });
 
@@ -49,7 +51,7 @@ const upload = multer({
     storage: s3Storage,
     limits: {
         fileSize: 1024 * 1024 * 10
-    }
+    },
 })
 
 export default upload

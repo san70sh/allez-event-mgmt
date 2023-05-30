@@ -15,6 +15,7 @@ enum actionType {
 }
 interface ProfileFormProps {
 	setFunction: Dispatch<SetStateAction<boolean>>;
+	profileFunc: Dispatch<SetStateAction<boolean>>;
 	action: actionType;
 	val: Values;
 }
@@ -56,7 +57,7 @@ const profileSchema = yup.object().shape({
 	dateOfBirth: yup.date().required("Please select your birthdate").min("1900-1-1").max(new Date(), "No future dates pls"),
 });
 
-const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): JSX.Element => {
+const profileForm = ({ setFunction, profileFunc, action, val: initVal }: ProfileFormProps): JSX.Element => {
 	const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
 	// const [userData, setUserData] = useState<Values>();
 	const { user, getAccessTokenSilently } = useAuth0();
@@ -150,6 +151,7 @@ const profileForm = ({ setFunction, action, val: initVal }: ProfileFormProps): J
 								);
 							}
 							setFunction(false);
+							profileFunc(true)
 					}}>
 					{({ errors, touched, isSubmitting }) => (
 						<Form className="max-w-3xl mx-auto rounded-lg shadow-xl overflow-hidden p-6 space-y-7">

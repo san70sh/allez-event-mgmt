@@ -1,10 +1,11 @@
 import joi from "joi";
-import { GridFSBucketReadStream, ObjectId } from "mongodb";
-import { collections, events, images } from "../config/mongoCollections.js";
+import { ObjectId } from "mongodb";
+import { collections, events } from "../config/mongoCollections.js";
 import IEvent from "../models/events.model";
 import { ErrorWithStatus } from "../types/global";
 import users from "./users.js";
 import payments from "./payments.js";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
   name: joi.string().required(),
@@ -45,7 +46,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
   eventEndTime: joi.string().required()
 });
 
-const validityCheck = (id: string | undefined, eventId: string | undefined) => {
+const validityCheck = (eventId: string | undefined) => {
   if (eventId && !ObjectId.isValid(eventId)) {
     let err: ErrorWithStatus = {
       message: "Invalid Event ID",
@@ -53,22 +54,11 @@ const validityCheck = (id: string | undefined, eventId: string | undefined) => {
     };
     throw err;
   }
-
-  if (id && !ObjectId.isValid(id)) {
-    let err: ErrorWithStatus = {
-      message: "Invalid ID",
-      status: 400,
-    };
-    throw err;
-  }
 };
 
 async function createEvent(eventDetails: IEvent): Promise<IEvent> {
-  console.log(eventDetails)
   await eventValidationSchema.validateAsync(eventDetails);
   console.log("Completed Data Validation")
-  let authId: string = eventDetails.hostId.split("|")[1];
-  validityCheck(authId, undefined);
 
   let newEvent: IEvent = {
     name: eventDetails.name.trim(),
@@ -163,7 +153,7 @@ async function createEvent(eventDetails: IEvent): Promise<IEvent> {
 }
 
 async function getEventById(eventId: string): Promise<IEvent> {
-  validityCheck(undefined, eventId);
+  validityCheck(eventId);
 
   await events();
 
@@ -185,7 +175,7 @@ async function getEventById(eventId: string): Promise<IEvent> {
 async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEvent> {
   await eventValidationSchema.validateAsync(eventDetails);
 
-  validityCheck(undefined, eventId);
+  validityCheck(eventId);
 
   let modifiedEvent: IEvent = {
     name: eventDetails.name.trim(),
@@ -231,7 +221,13 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
       throw err;
     } else {
       let updated_stripeEvt = await payments.modifyEvent(modifiedEvent)
-      
+      if (updated_stripeEvt && existingEvent.price !== modifiedEvent.price) {
+        if(existingEvent.price == 0) {
+          modifiedEvent.payment_url = await payments.addEventRegFee(updated_stripeEvt.id!, modifiedEvent.price)  
+        } else {
+          modifiedEvent.payment_url = await payments.updateEventRegFee(updated_stripeEvt.id!, modifiedEvent.price)
+        }
+      }
       let updatedEvent = await collections.events?.updateOne(
         { _id: new ObjectId(eventId) },
         {
@@ -245,7 +241,9 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
             description: modifiedEvent.description,
             eventDate: modifiedEvent.eventDate,
             eventStartTime: modifiedEvent.eventStartTime,
-            eventEndTime: modifiedEvent.eventEndTime
+            eventEndTime: modifiedEvent.eventEndTime,
+            evt_stripeid: updated_stripeEvt.id,
+            payment_url: modifiedEvent.payment_url
           },
         }
       );
@@ -269,7 +267,7 @@ async function modifyEvent(eventId: string, eventDetails: IEvent): Promise<IEven
 }
 
 async function deleteEvent(eventId: string, hostId: string): Promise<{ deleted: Boolean }> {
-  validityCheck(hostId, eventId);
+  validityCheck(eventId);
 
   let queryId: ObjectId = new ObjectId(eventId);
   await events();
@@ -282,12 +280,22 @@ async function deleteEvent(eventId: string, hostId: string): Promise<{ deleted: 
       };
       throw err;
     } else {
-      let deletedEvent = await collections.events?.deleteOne({ _id: queryId });
-      if (deletedEvent?.deletedCount == 1) {
-        return { deleted: true };
+      let stripe_deletedEvt = await payments.removeEvent(existingEvent.evt_stripeid!);
+      if (stripe_deletedEvt && !stripe_deletedEvt.active) {
+        let deletedImg = await removeImageFromStorage(eventId);
+        let deletedEvent = await collections.events?.deleteOne({ _id: queryId });
+        if (deletedEvent?.deletedCount == 1 && deletedImg) {
+          return { deleted: true };
+        } else {
+          let err: ErrorWithStatus = {
+            message: "Unable to delete event in database",
+            status: 500,
+          };
+          throw err;
+        }
       } else {
         let err: ErrorWithStatus = {
-          message: "Unable to delete event in database",
+          message: "Unable to delete event in Stripe",
           status: 500,
         };
         throw err;
@@ -302,6 +310,40 @@ async function deleteEvent(eventId: string, hostId: string): Promise<{ deleted: 
   }
 }
 
+async function removeImageFromStorage(eventID: string): Promise<boolean> {
+  let event: IEvent = await getEventById(eventID)
+  if(event) {
+    let imageId = event.eventImg
+    const s3 = new S3Client({
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS!,
+        secretAccessKey: process.env.AWS_SECRET!
+      },
+      region: "us-east-2",
+    });
+  
+    const command = new DeleteObjectCommand({
+      Bucket: "allez-event-images",
+      Key: imageId
+    })
+  
+    const response = await s3.send(command);
+    if(response){
+      return true
+
+    } else {
+      return false
+
+    }
+  } else {
+    let err: ErrorWithStatus = {
+      message: "Unable to find event in database",
+      status: 404,
+    };
+    throw err;
+  }
+
+}
 async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: number }> {
   await events();
   let allEvents = await collections.events?.find().toArray();
@@ -319,7 +361,6 @@ async function getAllEvents(): Promise<{ eventsData: IEvent[]; count: number }> 
 }
 
 async function deleteAllEventsOfHost(hostId: string) {
-  validityCheck(hostId, undefined);
 
   await events();
   let deletedEvent = await collections.events?.deleteMany({ hostId: hostId });
@@ -336,7 +377,7 @@ async function deleteAllEventsOfHost(hostId: string) {
 
 
 async function addCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
-  validityCheck(cohostId, eventId);
+  validityCheck(eventId);
 
   await events();
   let queryId: ObjectId = new ObjectId(eventId);
@@ -395,7 +436,7 @@ async function addCohost(eventId: string, cohostId: string, hostId: string): Pro
 }
 
 async function removeCohost(eventId: string, cohostId: string, hostId: string): Promise<IEvent> {
-  validityCheck(cohostId, eventId);
+  validityCheck(eventId);
 
   await events();
   let queryId: ObjectId = new ObjectId(eventId);
@@ -438,7 +479,7 @@ async function removeCohost(eventId: string, cohostId: string, hostId: string): 
 }
 
 async function addAttendee(eventId: string, attendeeId: string): Promise<IEvent> {
-  validityCheck(attendeeId, eventId);
+  validityCheck(eventId);
 
   await events();
   let queryId: ObjectId = new ObjectId(eventId);
@@ -483,7 +524,7 @@ async function addAttendee(eventId: string, attendeeId: string): Promise<IEvent>
 }
 
 async function removeAttendee(eventId: string, attendeeId: string): Promise<IEvent> {
-  validityCheck(attendeeId, eventId);
+  validityCheck(eventId);
   await events();
   let queryId: ObjectId = new ObjectId(eventId);
   let queriedEvent: IEvent | null | undefined = await collections.events?.findOne({ _id: queryId });
@@ -521,6 +562,7 @@ export default {
   modifyEvent,
   deleteEvent,
   getAllEvents,
+  removeImageFromStorage,
   getEventById,
   addCohost,
   removeCohost,

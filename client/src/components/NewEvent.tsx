@@ -70,14 +70,10 @@ const eventSchema = yup.object().shape({
 			const { eventStartTime } = this.parent;
 			return dayjs(val, "h:mm A").isAfter(dayjs(eventStartTime, "h:mm A"));
 		}),
-	eventImg: yup.mixed().test("type", "Only Image files", function (val) {
-		if (val) {
-			return val && ["image/jpeg", "image/png", "image/jpg"].includes(val.type);
-		} else {
-			return true;
-		}
-	}).test("size", "File Size Exceeded", function(val) {
-		if(val) {
+	eventImg: yup.mixed().test("size", "File Size Exceeded", function(val) {
+		const initialImage = this.options.context!.initialImage;
+		const isTouched = this.parent.eventImg !== initialImage;
+		if(val && val.type) {
 			const max_size = 10 * 1024 * 1024;
 			return val.size <= max_size
 		} else {
@@ -142,6 +138,7 @@ const NewEvent: React.FC = () => {
 						eventStartTime: data.eventStartTime,
 						eventEndTime: data.eventEndTime,
 						eventImg: data.eventImg,
+
 					};
 					setInitVal(fetchedEvt);
 					setVenueLoc(fetchedEvt.venue);
@@ -166,6 +163,7 @@ const NewEvent: React.FC = () => {
 							initialValues={initVal}
 							validationSchema={eventSchema}
 							enableReinitialize
+							context={{initialImage: initVal.eventImg}}
 							onSubmit={async (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
 								let completeAddress = venueLoc?.split(",");
 								let token = await getAccessTokenSilently({
@@ -198,6 +196,8 @@ const NewEvent: React.FC = () => {
 										navigate("/");
 									}
 								} else if (type == ActionType.EDIT) {
+									console.log(values)
+									console.log(initVal)
 									let modifiedEvent = await axios.put(
 										`http://localhost:3000/events/${eventId}`,
 										{
@@ -225,7 +225,7 @@ const NewEvent: React.FC = () => {
 									}
 								}
 							}}>
-							{({ errors, touched, isSubmitting }) => (
+							{({ errors, touched, isSubmitting, dirty }) => (
 								<Form>
 									<div className="relative px-2 grid pb-4">
 										<div className={`relative border-b-2 focus-within:border-blue-500 ${errors.name && touched.name ? `border-red-500` : ""} `}>
@@ -395,11 +395,11 @@ const NewEvent: React.FC = () => {
 									</div>
 									<div className="flex justify-center my-4">
 										{isSubmitting ? (
-											<div className="flex justify-center border-2 border-orange-700 rounded p-2 w-32">
-												<LoadingSpinner width="6" height="6" />
+											<div className="flex justify-center border-2 border-orange-700 rounded py-3 px-32">
+												<LoadingSpinner width="7" height="7" />
 											</div>
 										) : (
-											<button type="submit" className="bg-orange-400 py-2 mx-14 px-32 rounded shadow-orange-500 shadow-md outline-none text-gray-50 hover:text-red-800 hover:bg-orange-600 transition duration-300 ">
+											<button type="submit" disabled={!dirty} className="bg-orange-400 py-2 mx-14 px-32 rounded shadow-orange-500 text-slate-100 shadow-md outline-none disabled:text-slate-500 disabled:bg-orange-200 disabled:shadow-none hover:text-red-800 hover:bg-orange-600 transition duration-300 ">
 												Submit
 											</button>
 										)}
