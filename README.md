@@ -10,3 +10,5 @@ The project is split into 2 codebases - api and client. To run the project, clon
 
 - Inside api folder:
 > `npm start`
+
+*The project also requires Redis Server to retrieve most recently visited events from cache. So, make sure to have Redis running before starting the application*
