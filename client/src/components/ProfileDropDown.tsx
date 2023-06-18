@@ -26,14 +26,12 @@ const dropDownElements = (elements: DropDownItem[]): React.ReactNode => {
     })
     return menuItems;
 }
-export const ProfileDropDown: React.FC<{ header: UserItem; items: DropDownItem[] }> = ({ header, items }) => {
+export const ProfileDropDown: React.FC<{ header: UserItem; items: DropDownItem[], profileImg: string }> = ({ header, items, profileImg }) => {
   return (
     <Menu as="div">
-      <div>
-        <Menu.Button className="bg-orange-400 text-orange-50 p-3 font-medium rounded-full scale-50">
-          <img src={header.user.picture} alt={header.user.name} className="rounded-full" referrerPolicy="no-referrer"></img>
+        <Menu.Button className="text-orange-50 ring-4 ring-orange-400 font-medium rounded-full mt-2 mx-5 scale-50">
+          <img src={profileImg} alt={header.user.name} className="rounded-full aspect-square object-cover" referrerPolicy="no-referrer"></img>
         </Menu.Button>
-      </div>
       <Transition
         as={Fragment}
         enter="transition ease-out duration-100"

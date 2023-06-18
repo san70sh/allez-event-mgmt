@@ -44,6 +44,7 @@ export interface UserValues {
 	lastName: string;
 	gender: string;
 	phone: string;
+	profileImg: string | undefined,
 	address: {
 		city: string;
 		postal_code: string;

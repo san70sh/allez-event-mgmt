@@ -12,10 +12,8 @@ export const AuthProvider = (): JSX.Element | null => {
     console.log("TestAuth")
     return null;
   }
-
+  
   const onRedirectCallback = (appState?: AppState) => {
-    console.log(appState?.returnTo)
-    console.log(window.location.pathname)
     navigate(appState?.returnTo || window.location.pathname);
   };
   

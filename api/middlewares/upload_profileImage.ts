@@ -35,7 +35,7 @@ const s3 = new S3Client({
 
 const s3Storage = multers3({
     s3: s3,
-    bucket: "allez-event-images",
+    bucket: "allez-user-images",
     key: function(req, file, callback) {
         callback(null, Date.now() + "_" + file.originalname)
     },
@@ -47,11 +47,11 @@ const s3Storage = multers3({
     }
 });
 
-const upload = multer({
+const upload_profile = multer({
     storage: s3Storage,
     limits: {
         fileSize: 1024 * 1024 * 10
     },
 })
 
-export default upload
+export default upload_profile

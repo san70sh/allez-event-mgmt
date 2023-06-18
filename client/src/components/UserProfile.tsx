@@ -16,6 +16,7 @@ const userProfile = () => {
 	const [userCohostedEvents, setUserCohostedEvents] = useState<IEvent[]>();
 	const [userAttendedEvents, setUserAttendedEvents] = useState<IEvent[]>();
 	const [openProfileForm, setOpenProfileForm] = useState<boolean>(false);
+	const [isProfilePresent, setIsProfilePresent] = useState<boolean>(false);
 	let hostedEventsCards: JSX.Element[] = [];
 	let cohostedEventsCards: JSX.Element[] = [];
 	let registeredEventsCards: JSX.Element[] = [];
@@ -35,6 +36,7 @@ const userProfile = () => {
 				});
 				if (userData) {
 					setUserDat(userData.data);
+					setIsProfilePresent(true)
 					if (userData.data.hostEventArray.length > 0) {
 						let eventsDat: AxiosResponse<EventResponse> = await axios.get(`http://localhost:3000/users/hostedEvents`, {
 							withCredentials: true,
@@ -71,11 +73,13 @@ const userProfile = () => {
 							setUserAttendedEvents(events);
 						}
 					}
+				} else {
+					setIsProfilePresent(false)
 				}
 			}
 		};
 		fetchUser();
-	}, []);
+	}, [isProfilePresent]);
 
 	const ProfileModal = () => {
 		let initVal: UserValues;
@@ -83,6 +87,7 @@ const userProfile = () => {
 			initVal = {
 				firstName: userDat.firstName,
 				lastName: userDat.lastName,
+				profileImg: userDat.profileImg,
 				gender: userDat.gender,
 				phone: userDat.phone.toString(),
 				address: {
@@ -97,6 +102,7 @@ const userProfile = () => {
 			initVal = {
 				firstName: "",
 				lastName: "",
+				profileImg: "",
 				gender: "",
 				phone: "",
 				address: {
@@ -125,7 +131,7 @@ const userProfile = () => {
 							<div className="flex min-h-full items-center justify-center p-4 text-center w-full">
 								<Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
 									<Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-										<ProfileForm setFunction={setOpenProfileForm} action={1} val={initVal} />
+										<ProfileForm setFunction={setOpenProfileForm} profileFunc={setIsProfilePresent} action={1} val={initVal} />
 									</Dialog.Panel>
 								</Transition.Child>
 							</div>
@@ -184,13 +190,13 @@ const userProfile = () => {
 	return (
 		<div>
 			<div>
-				<div className="rounded-full flex justify-center">{user && user.picture ? <img src={user.picture} alt="Profile Photo" referrerPolicy="no-referrer" /> : <img src={noImage} alt="Profile Photo" />}</div>
+				<div className="rounded-full mx-auto w-1/6 h-1/6">{userDat && userDat.profileImg ? <img className="aspect-square object-cover rounded-full" src={`https://d2bgr0kljb65n3.cloudfront.net/${userDat?.profileImg}`} alt="Profile Photo" referrerPolicy="no-referrer" /> : <img src={noImage} alt="Profile Photo" />}</div>
 				<div className="flex justify-center">
 					<p className="m-3 font-bold">{userDat?.firstName}</p>
 					<p className="m-3 font-bold">{userDat?.lastName}</p>
 				</div>
 				<div className="flex justify-center">
-					{userDat ?
+					{isProfilePresent ?
 					(<button className="w-auto my-2 mx-3 p-3 bg-orange-700 hover:bg-orange-600 duration-200 shadow-orange-300 shadow-md rounded-md text-white" onClick={() => setOpenProfileForm(true)}>
 						Manage Profile
 					</button>) :

@@ -15,7 +15,6 @@ const buildApp = async (app: Application) => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cors({ origin: true, credentials: true }));
-  console.log("Test")
   // app.get("/auth_config.json", (req, res) => {
   //   res.sendFile(join(__dirname, "auth_config.json"));
   // });

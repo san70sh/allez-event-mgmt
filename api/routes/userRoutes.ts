@@ -7,6 +7,7 @@ import joi from "joi";
 // import jwtAuthz from "express-jwt-authz";
 import { checkJwt } from "../middlewares/auth.js";
 import { Request as JWTRequest } from "express-jwt";
+import upload_profile from "../middlewares/upload_profileImage.js"
 
 
 const router = express.Router();
@@ -22,6 +23,7 @@ const userValidationSchema = joi.object({
     .pattern(/^[a-z]+$/i)
     .min(1)
     .required(),
+  profileImg: joi.optional(),
   gender: joi
     .string()
     .pattern(/^(?:Male|Female|Other)$/)
@@ -53,16 +55,18 @@ const userValidationSchema = joi.object({
   attendEventArray: joi.optional(),
 });
 
-router.post("/signup", checkJwt, async (req: JWTRequest, res: express.Response) => {
+router.post("/signup", checkJwt, upload_profile.single("profileImg"), async (req: JWTRequest, res: express.Response) => {
   try {
     const { body, auth } = req;
-    const { user } = body;
+    const file = req.file as Express.MulterS3.File
+    let user = body
+    console.log(user)
     await userValidationSchema.validateAsync(user);
-
     if (auth && auth.sub) {
       let newUser: IUser = {
         firstName: xss(user.firstName.trim()),
         lastName: xss(user.lastName.trim()),
+        profileImg: file.key,
         address: {
           city: xss(user.address.city.trim()),
           state: xss(user.address.state.trim()),
@@ -78,7 +82,7 @@ router.post("/signup", checkJwt, async (req: JWTRequest, res: express.Response) 
         cohostEventArray: [],
         attendEventArray: [],
       };
-
+      
       let createdUser: IUser | undefined = await users.createUser(newUser);
       if (createdUser) {
         return res.status(200).send(createdUser);
@@ -97,16 +101,18 @@ router.post("/signup", checkJwt, async (req: JWTRequest, res: express.Response) 
   }
 });
 
-router.put("/",checkJwt, async (req: JWTRequest, res: express.Response) => {
+router.put("/",checkJwt, upload_profile.single("profileImg"), async (req: JWTRequest, res: express.Response) => {
   try {
     const { body, auth } = req;
-    const { user } = body;
+    const file = req.file as Express.MulterS3.File;
+    let user = body;
     await userValidationSchema.validateAsync(user);
-
+    
     if (auth && auth.sub) {
       let modifiedUser: IUser = {
         firstName: xss(user.firstName.trim()),
         lastName: xss(user.lastName.trim()),
+        profileImg: file?.key,
         address: {
           city: xss(user.address.city.trim()),
           state: xss(user.address.state.trim()),
@@ -122,7 +128,7 @@ router.put("/",checkJwt, async (req: JWTRequest, res: express.Response) => {
         cohostEventArray: user.cohostEventArray,
         attendEventArray: user.attendEventArray,
       };
-
+      
       let updatedUser: IUser | undefined = await users.modifyUser(modifiedUser);
       if (updatedUser) {
         return res.status(200).send(updatedUser);
@@ -137,6 +143,7 @@ router.put("/",checkJwt, async (req: JWTRequest, res: express.Response) => {
       };
       return res.status(err.status).send(err.message);
     }
+    console.log(e)
     return res.status(e.status).send(e.message);
   }
 });

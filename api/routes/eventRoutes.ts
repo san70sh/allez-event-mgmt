@@ -1,4 +1,5 @@
 import express from "express";
+import redis from "redis";
 import joi from "joi";
 import { ObjectId } from "mongodb";
 import xss from "xss";
@@ -11,6 +12,7 @@ import { Request as JWTRequest } from "express-jwt";
 import upload from "../middlewares/upload.js";
 
 const router = express.Router();
+const client = redis.createClient()
 
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
@@ -56,7 +58,6 @@ router.post("/new", checkJwt, upload.single("eventImg"), async (req: JWTRequest,
   try {
     const { body, auth } = req;
     const file = req.file as Express.MulterS3.File
-    console.log(body)
     let eventDetails = body;
     if (auth && auth.sub) {
       let newEvent: IEvent = {
@@ -125,37 +126,45 @@ router.put("/:eventId", checkJwt, upload.single("eventImg"), async (req: JWTRequ
       return;
     }
     if (auth && auth.sub) {
-
+      let existingEvent: IEvent = await events.getEventById(eventId);
+      
       let modifiedEvent: IEvent = {
         name: xss(event.name.trim()),
         category: event.category,
-        price: event.price,
-        hostId: event.hostId,
-        evt_stripeid: event.evt_stripeid,
+        price: Number(xss(event.price)),
+        hostId: xss(event.hostId),
+        evt_stripeid: existingEvent.evt_stripeid,
         payment_url: event.payment_url,
-        minAge: event.minAge,
-        description: event.description,
-        eventDate: event.eventDate,
-        bookedSeats: event.bookedSeats,
-        totalSeats: event.totalSeats,
-        eventStartTime: event.eventStartTime,
-        eventEndTime: event.eventEndTime,
-        cohostArr: event.cohostArr,
-        attendeesArr: event.attendeesArr,
+        minAge: Number(xss(event.minAge)),
+        description: xss(event.description),
+        eventDate: xss(event.eventDate),
+        bookedSeats: Number(xss(event.bookedSeats)),
+        totalSeats: Number(xss(event.totalSeats)),
+        eventStartTime: xss(event.eventStartTime),
+        eventEndTime: xss(event.eventEndTime),
+        cohostArr: existingEvent.cohostArr,
+        attendeesArr: existingEvent.attendeesArr,
         eventImg: file?.key!,
         venue: {
-          address: event.venue.address,
-          city: event.venue.city,
-          state: event.venue.state,
-          country: event.venue.country,
-          zip: event.venue.zip,
+          address: xss(event.venue.address.trim()),
+          city: xss(event.venue.city.trim()),
+          state: xss(event.venue.state.trim()),
+          country: xss(event.venue.country.trim()),
+          zip: Number(xss(event.venue.zip)),
           // geoLocation: {
           //   lat: event.venue.geoLocation.lat,
           //   long: event.venue.geoLocation.long,
           // },
         },
       };
-      await eventValidationSchema.validateAsync(event);
+      if (!req.file) {
+        modifiedEvent.eventImg = existingEvent.eventImg
+      }
+
+      if(modifiedEvent.eventImg !== existingEvent.eventImg) {
+        await events.removeImageFromStorage(existingEvent._id!.toString())
+      }
+      await eventValidationSchema.validateAsync(modifiedEvent);
       let updatedUser: IEvent | undefined = await events.modifyEvent(eventId, modifiedEvent);
       if (updatedUser) {
         return res.status(200).send(updatedUser);
@@ -183,6 +192,32 @@ router.get("/", async (req: express.Request, res: express.Response) => {
   }
 });
 
+
+router.get("/cache", checkJwt, async (req: JWTRequest, res: express.Response) => {
+  try {
+    let { auth } = req
+    if (auth && auth.sub) {
+      await client.connect();
+      let eventList: string[] = await client.zRange(auth.sub, 0, 3)
+      if (eventList && eventList.length > 0) {
+        let eventPromises = eventList.map(eventId => events.getEventById(eventId))
+        let eventArr = await Promise.all(eventPromises)
+        await client.quit()
+        return res.status(200).send(eventArr);
+      } else {
+        await client.quit()
+        return res.send([]).status(200);
+      }
+    }
+  } catch(e: any) {
+    console.log(e)
+    if(client.isOpen) {
+      await client.quit()
+    }
+    return res.status(e.status).send(e.message);
+  }
+});
+
 router.get("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
     let id: string = xss(req.params.eventId);
@@ -200,6 +235,42 @@ router.get("/:eventId", async (req: express.Request, res: express.Response) => {
   }
 });
 
+router.get("/:eventId/cache", checkJwt, async (req: JWTRequest, res: express.Response) => {
+  try {
+    let id: string = xss(req.params.eventId);
+    let { auth } = req
+    console.log("Test")
+    if (auth && auth.sub) {
+      if (!ObjectId.isValid(req.params.eventId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid event ID",
+          status: 400,
+        };
+        return res.status(err.status).send(err.message);
+      }
+      let getEventDetails = await events.getEventById(id);
+      await client.connect()
+      let eventExists = await client.zScore(auth.sub, id)
+      console.log(eventExists)
+      if (eventExists) {
+        await client.zIncrBy(auth.sub, 1, id)
+      } else {
+        await client.zAdd(auth.sub, {score: 1, value: id})
+        await client.sAdd(id, auth.sub)
+      }
+      await client.quit()
+      return res.status(200).send(getEventDetails);
+    }
+  } catch (e: any) {
+    console.log(e)
+    if (client.isOpen) {
+      await client.quit()
+    }
+    return res.status(e.status).send(e.message);
+  }
+});
+
+
 router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
@@ -212,18 +283,30 @@ router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respon
       return res.status(err.status).send(err.message);
     }
     if (auth && auth.sub) {
-      let authId = auth.sub.split("|")[1];
-      let deletedEvent = await events.deleteEvent(id, authId);
+      let deletedEvent = await events.deleteEvent(id, auth.sub);
       if (deletedEvent.deleted) {
+        await client.connect();
+        let authKeys = await client.sMembers(id)
+        if(authKeys) {
+          authKeys.forEach(async (key) => {
+            await client.zRem(key, id)
+          })
+        }
+        await Promise.all(authKeys)
+        await client.quit()
+        let authId = auth.sub.split("|")[1]
         let updatedUser = await users.removeHostedEvents(authId, id);
         if (updatedUser) {
-          return res.status(200).send(deletedEvent);
+          return res.status(200).send({deleted: true});
         }
       } else {
         return res.status(400).send({ deleted: false });
       }
     }
   } catch (e: any) {
+    if (client.isOpen) {
+      await client.quit()
+    }
     return res.status(e.status).send(e.message);
   }
 });
@@ -305,6 +388,8 @@ router.patch("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respons
     return res.status(e.status).send(e.message);
   }
 });
+
+router.post("/stripe_webhook")
 
 router.patch("/:eventId/registerEvent", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {

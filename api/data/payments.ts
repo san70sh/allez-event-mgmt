@@ -115,7 +115,7 @@ const eventValidationSchema: joi.ObjectSchema = joi.object({
 });
 
 
-async function addEvent(event: IEvent): Promise<{eventId: string, payment_url: string} | null> {
+async function addEvent(event: IEvent): Promise<{eventId: string, payment_url: string | undefined}> {
 
     await eventValidationSchema.validateAsync(event);
 
@@ -135,42 +135,50 @@ async function addEvent(event: IEvent): Promise<{eventId: string, payment_url: s
     }
 
     let insertedEvent = await stripe.products.create(newEvent);
-    if (insertedEvent) {
-        let eventPrice = await addEventRegFee(insertedEvent.id, event.price)
-        if (eventPrice) {
-            let payment_url = await generatePaymentLink(eventPrice.id)
-            if (payment_url) {
-                return {eventId: insertedEvent.id, payment_url: payment_url}
-            } else {
-                return null
-            }
-        } else {
-            return null
-        }
+    if (insertedEvent && event.price > 0) {
+        let payment_url = await addEventRegFee(insertedEvent.id, event.price)
+        // if (payment_url) {
+            return {eventId: insertedEvent.id, payment_url: payment_url}
+        // } else {
+        //     return null
+        // }
     } else {
-        let err: ErrorWithStatus = {
-            status: 500,
-            message: "Unable to create event in Stripe"
+        if(insertedEvent) {
+            return {eventId: insertedEvent.id, payment_url: undefined}
+        } else {
+            let err: ErrorWithStatus = {
+                status: 500,
+                message: "Unable to create event in Stripe"
+            }
+            throw err
+
         }
-        throw err
     }
 }
 
 async function getEvent(eventID: string): Promise<Stripe.Response<Stripe.Product>> {
     if (!eventID) {
-        throw [400, "Bad Request, please enter a valid eventID"];
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "Bad Request, please enter a valid eventID"
+        }
+        throw err
     }
     else {
         let event = await stripe.products.retrieve(eventID);
         if (event) {
             return event;
         } else {
-            throw [404, "The event with this ID is not found."]
+            let err: ErrorWithStatus = {
+                status: 400,
+                message: "The event with this ID is not found."
+            }
+            throw err
         }
     }
 }
 
-async function modifyEvent(event: IEvent): Promise<EventProduct> {
+async function modifyEvent(event: IEvent): Promise<Stripe.Product> {
 
     await eventValidationSchema.validateAsync(event);
 
@@ -191,31 +199,48 @@ async function modifyEvent(event: IEvent): Promise<EventProduct> {
     let stripe_evt = await getEvent(event.evt_stripeid!);
     if(stripe_evt) {
         let updatedEvt = await stripe.products.update(
-            event._id!.toString(),
+            stripe_evt.id,
             modEvent
         );
+        return updatedEvt
+    } else {
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "The event with this ID is not found."
+        }
+        throw err
     }
-    updateEventRegFee(event._id!.toString(), event.price)
-    return modEvent
 }
 
 async function removeEvent(eventID: string): Promise<Stripe.Response<Stripe.Product>> {
     if (!eventID) {
-        throw [400, "Bad Request, please enter a valid eventID"];
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "Bad Request, please enter a valid eventID"
+        }
+        throw err
     } else {
         let event = await stripe.products.retrieve(eventID);
         if (event) {
             let delEvent = await stripe.products.update(event.id, { active: false });
             return delEvent
         } else {
-            throw [404, "This event does not exist in Stripe"];
+            let err: ErrorWithStatus = {
+                status: 404,
+                message: "This event does not exist in Stripe"
+            }
+            throw err
         }
     }
 }
 
-async function addEventRegFee(eventID: string, price: number): Promise<Stripe.Response<Stripe.Price> | undefined> {
+async function addEventRegFee(eventID: string, price: number): Promise<string> {
     if (!eventID) {
-        throw [400, "Bad Parameters, Please enter a valid event ID"]
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "Bad Parameters, Please enter a valid event ID"
+        }
+        throw err
     }
     else {
         let event = await stripe.products.retrieve(eventID);
@@ -229,17 +254,32 @@ async function addEventRegFee(eventID: string, price: number): Promise<Stripe.Re
 
             let newFee = await stripe.prices.create(eventFee)
             if (newFee) {
-                return newFee;
+                let paymentLink = await generatePaymentLink(newFee.id);
+                return paymentLink;
             } else {
-                throw [400, "Unable to add price to event."]
+                let err: ErrorWithStatus = {
+                    status: 500,
+                    message: "Unable to add price to event"
+                }
+                throw err
             }
+        } else {
+            let err: ErrorWithStatus = {
+                status: 404,
+                message: "Unable to find event in Stripe"
+            }
+            throw err
         }
     }
 }
 
-async function updateEventRegFee(eventID: string, price: number): Promise<Stripe.Response<Stripe.Price>> {
+async function updateEventRegFee(eventID: string, price: number): Promise<string> {
     if (!eventID) {
-        throw [400, "Bad Parameters, Please enter a valid event ID"]
+        let err: ErrorWithStatus = {
+            status: 400,
+            message: "Bad Parameters, Please enter a valid event ID"
+        }
+        throw err
     }
     else {
         let event = await stripe.products.retrieve(eventID);
@@ -259,19 +299,42 @@ async function updateEventRegFee(eventID: string, price: number): Promise<Stripe
                         unit_amount: price * 100,
                         billing_scheme: "per_unit",
                     }
+                    
                     let newPriceObj = await stripe.prices.create(eventFee);
-                    return newPriceObj;
+                    if (newPriceObj) {
+                        let newPaymentLinkUrl = await generatePaymentLink(newPriceObj.id)
+                        return newPaymentLinkUrl
+                    } else {
+                        let err: ErrorWithStatus = {
+                            status: 500,
+                            message: "Unable to create new price for event"
+                        }
+                        throw err
+                    }
                 } else {
-                    throw [500, "Unable to modify price from the product"]
+                    let err: ErrorWithStatus = {
+                        status: 500,
+                        message: "Unable to modify price from the product"
+                    }
+                    throw err
                 }
             } else {
-                throw [404, "This product does not have any active prices."]
+                let err: ErrorWithStatus = {
+                    status: 404,
+                    message: "This product does not have any active prices."
+                }
+                throw err
             }
         } else {
-            throw [400, "This event does not exist in Stripe."]
+            let err: ErrorWithStatus = {
+                status: 400,
+                message: "This event does not exist in Stripe."
+            }
+            throw err
         }
     }
 }
+
 async function generatePaymentLink(priceId: string): Promise<string>{
     if(!priceId) {
         let err: ErrorWithStatus = {
@@ -286,7 +349,10 @@ async function generatePaymentLink(priceId: string): Promise<string>{
                     price: priceId,
                     quantity: 1
                 }
-            ]
+            ],
+            metadata: {
+                product_priceId: priceId
+            }
         });
         if (paymentLink) {
             return paymentLink.url
@@ -300,29 +366,29 @@ async function generatePaymentLink(priceId: string): Promise<string>{
     }
 }
 
-async function getEventPrice(eventId: string): Promise<string> {
-    if (!eventId) {
-        throw [400, "Bad Parameters, Please enter a valid event ID"]
-    }
-    else {
-        let event = await stripe.products.retrieve(eventId);
-        if (event) {
-            let eventFee: Stripe.Response<Stripe.ApiList<Stripe.Price>> = await stripe.prices.list({
-                product: event.id,
-                active: true
-            })
+// async function getEventPrice(eventId: string): Promise<string> {
+//     if (!eventId) {
+//         throw [400, "Bad Parameters, Please enter a valid event ID"]
+//     }
+//     else {
+//         let event = await stripe.products.retrieve(eventId);
+//         if (event) {
+//             let eventFee: Stripe.Response<Stripe.ApiList<Stripe.Price>> = await stripe.prices.list({
+//                 product: event.id,
+//                 active: true
+//             })
 
-            if (eventFee.data && eventFee.data.length > 0) {
-                let eventPriceId: string = eventFee.data[0].id;
-                return eventPriceId;
-            } else {
-                throw [404, "This product does not have any active prices."]
-            }
-        } else {
-            throw [400, "This event does not exist in Stripe."]
-        }
-    }
-}
+//             if (eventFee.data && eventFee.data.length > 0) {
+//                 let eventPriceId: string = eventFee.data[0].id;
+//                 return eventPriceId;
+//             } else {
+//                 throw [404, "This product does not have any active prices."]
+//             }
+//         } else {
+//             throw [400, "This event does not exist in Stripe."]
+//         }
+//     }
+// }
 
 // async function addCustomer(customer: IUser) {
 //     let newCustomer: Stripe.CustomerCreateParams = {
