@@ -16,6 +16,7 @@ const userValidationSchema: joi.ObjectSchema = joi.object({
     .pattern(/^[a-z]+$/i)
     .min(1)
     .required(),
+  profileImg: joi.string().optional(),
   gender: joi
     .string()
     .pattern(/^(?:Male|Female|Other)$/)
@@ -73,6 +74,7 @@ async function createUser(person: IUser): Promise<IUser> {
     _id: new ObjectId(pId[1]),
     firstName: person.firstName.trim(),
     lastName: person.lastName.trim(),
+    profileImg: person.profileImg,
     address: {
       city: person.address.city.trim(),
       state: person.address.state.trim(),
@@ -141,6 +143,7 @@ async function modifyUser(person: IUser): Promise<IUser> {
   let modifiedUser: IUser = {
     firstName: person.firstName.trim(),
     lastName: person.lastName.trim(),
+    profileImg: person.profileImg,
     address: {
       city: person.address.city.trim(),
       state: person.address.state.trim(),
@@ -172,6 +175,7 @@ async function modifyUser(person: IUser): Promise<IUser> {
           address: modifiedUser.address,
           phone: modifiedUser.phone,
           dateOfBirth: modifiedUser.dateOfBirth,
+          profileImg: modifiedUser.profileImg,
           // hostEventArray: modifiedUser.hostEventArray,
           // attendEventArray: modifiedUser.attendEventArray,
         },

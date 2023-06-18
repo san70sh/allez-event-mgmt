@@ -4,6 +4,7 @@ import axios, { AxiosResponse } from "axios";
 import noImage from "../assets/noImage.jpg";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "./Loading";
+import EventCache from "./EventCache";
 
 const events: React.FC = () => {
   // const [events, setEvents] = useState<IEvent[]>([]);
@@ -30,6 +31,7 @@ const events: React.FC = () => {
       setDisplayedEvents(eventData.data);
     };
     fetchEventList();
+
   }, []);
 
   if (loading) {
@@ -41,6 +43,10 @@ const events: React.FC = () => {
     );
   }
 
+  const filters = () => {
+    
+  }
+
   const eventCard = (event: IEvent): JSX.Element => {
     let imgSrc = ""
     if (event.eventImg) {
@@ -50,12 +56,12 @@ const events: React.FC = () => {
     }
     return (
       <div
-        className="max-w-sm rounded-xl overflow-hidden scale-90 shadow-md hover:scale-110 hover:duration-150 duration-150"
+        className="max-w-sm rounded-xl overflow-hidden h-auto scale-90 shadow-md hover:scale-110 hover:duration-150 duration-150"
         key={event._id}
       >
         <Link to={`events/${event._id}`}>
           <div className="relative px-6 py-4 text-center">
-            <img src={imgSrc} sizes="small" className="relative mx-auto"/>
+            <img src={imgSrc} className="mx-auto aspect-[16/10] object-cover"/>
             <div className="font-bold text-xl my-2">{event.name}</div>
             <p className="text-gray-700 text-base font-semibold">
               {event.venue.city}, {event.venue.state}
@@ -64,7 +70,7 @@ const events: React.FC = () => {
               {event.bookedSeats} / {event.totalSeats}
             </p>
           </div>
-          <div className="px-6 pt-4 pb-2">
+          <div className="px-6 pt-4 pb-2 mt-5 bottom-0">
             {event.category.map((cat) => {
               return (
                 <span className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2" key={cat}>
@@ -90,7 +96,23 @@ const events: React.FC = () => {
         <button className="px-4 mx-32 rounded-sm col-start-4 col-end-7 border-2">Going</button>
         <button className="px-4 py-2 mx-32 rounded-sm col-start-7 col-end-9 border-2">Saved</button>
       </div>
-      {displayedEvents ? <div className="mt-5 mx-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 auto-cols-max">{card}</div>: <p>No Events</p>}
+      {displayedEvents ? (
+        <div className="grid grid-cols-5">
+          <div className="col-start-1 col-span-1 grid grid-flow-row">
+            <div>
+              <p>Filters</p>
+            </div>
+            <div>
+              <EventCache/>
+            </div>
+          </div>
+          <div className="mt-5 col-start-2 col-span-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 auto-cols-max h-fit">
+            {card}
+          </div>
+        </div>
+        ): 
+        <p>No Events</p>
+      }
     </div>
   );
 };

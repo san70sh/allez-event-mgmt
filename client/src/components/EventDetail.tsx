@@ -26,9 +26,27 @@ const EventDetail = () => {
 	});
 	useEffect(() => {
 		let getEvent = async (eventId: string) => {
-			const eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eventId}`);
-			if (eventDetails && eventDetails.status == 200) {
-				setEventDat(eventDetails.data);
+			if (user) {
+				let token = await getAccessTokenSilently({
+					audience: "localhost:5173/api",
+					scope: "read:current_user",
+				});
+				console.log("User checks out")
+				let eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eventId}/cache`, {
+					headers: {
+						Authorization: `Bearer ${token}`,
+					}
+				});
+				if (eventDetails && eventDetails.status == 200) {
+					setEventDat(eventDetails.data);
+				}
+			} else {
+				console.log("No user")
+				let eventDetails: AxiosResponse<IEvent> = await axios.get(`http://localhost:3000/events/${eventId}`);
+				if (eventDetails && eventDetails.status == 200) {
+					setEventDat(eventDetails.data);
+				}
+
 			}
 		};
 		getEvent(eventId!);

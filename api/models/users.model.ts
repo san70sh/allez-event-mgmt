@@ -5,6 +5,7 @@ export default interface IUser {
     firstName: string,
     lastName: string,
     authId: string,
+    profileImg: string,
     address: {
         city: string,
         state: string,

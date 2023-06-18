@@ -71,8 +71,8 @@ const eventSchema = yup.object().shape({
 			return dayjs(val, "h:mm A").isAfter(dayjs(eventStartTime, "h:mm A"));
 		}),
 	eventImg: yup.mixed().test("size", "File Size Exceeded", function(val) {
-		const initialImage = this.options.context!.initialImage;
-		const isTouched = this.parent.eventImg !== initialImage;
+		// const initialImage = this.options.context!.initialImage;
+		// const isTouched = this.parent.eventImg !== initialImage;
 		if(val && val.type) {
 			const max_size = 10 * 1024 * 1024;
 			return val.size <= max_size
@@ -90,7 +90,7 @@ const NewEvent: React.FC = () => {
 	const [initVal, setInitVal] = useState<Values>(defaultVal);
 	const { user, getAccessTokenSilently } = useAuth0();
 	const [imageURL, setImageURL] = useState<string>();
-	const [image, setImage] = useState<File>();
+	// const [image, setImage] = useState<File>();
 	const [categoryLst, setCategoryLst] = useState<string[]>([]);
 
 	const navigate = useNavigate();
@@ -114,9 +114,8 @@ const NewEvent: React.FC = () => {
 
 	const handleImgRemove = (event: React.MouseEvent<HTMLButtonElement>) => {
 		event.preventDefault()
-		console.log(imageURL)
 		setImageURL("")
-		setImage(undefined)
+		// setImage(undefined)
 	}
 
 	useEffect(() => {
@@ -163,7 +162,7 @@ const NewEvent: React.FC = () => {
 							initialValues={initVal}
 							validationSchema={eventSchema}
 							enableReinitialize
-							context={{initialImage: initVal.eventImg}}
+							// context={{initialImage: initVal.eventImg}}
 							onSubmit={async (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
 								let completeAddress = venueLoc?.split(",");
 								let token = await getAccessTokenSilently({
@@ -196,8 +195,6 @@ const NewEvent: React.FC = () => {
 										navigate("/");
 									}
 								} else if (type == ActionType.EDIT) {
-									console.log(values)
-									console.log(initVal)
 									let modifiedEvent = await axios.put(
 										`http://localhost:3000/events/${eventId}`,
 										{
@@ -297,9 +294,7 @@ const NewEvent: React.FC = () => {
 															<label htmlFor="eventImg">
 																{!imageURL && <img src={upload} alt="upload icon" className="w-7 h-7 mt-1" />}
 																<input type="file" accept="image/*" id="eventImg" name="eventImg" onChange={(event) => {
-																	console.log(event)
 																	if(event.target.files) {
-																		console.log(event.target.files[0])
 																		form.setFieldValue("eventImg", event.target.files[0])
 																		setImageURL(URL.createObjectURL(event.target.files[0]))
 																	}

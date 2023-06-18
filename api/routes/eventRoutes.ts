@@ -1,4 +1,5 @@
 import express from "express";
+import redis from "redis";
 import joi from "joi";
 import { ObjectId } from "mongodb";
 import xss from "xss";
@@ -11,6 +12,7 @@ import { Request as JWTRequest } from "express-jwt";
 import upload from "../middlewares/upload.js";
 
 const router = express.Router();
+const client = redis.createClient()
 
 
 const eventValidationSchema: joi.ObjectSchema = joi.object({
@@ -190,6 +192,32 @@ router.get("/", async (req: express.Request, res: express.Response) => {
   }
 });
 
+
+router.get("/cache", checkJwt, async (req: JWTRequest, res: express.Response) => {
+  try {
+    let { auth } = req
+    if (auth && auth.sub) {
+      await client.connect();
+      let eventList: string[] = await client.zRange(auth.sub, 0, 3)
+      if (eventList && eventList.length > 0) {
+        let eventPromises = eventList.map(eventId => events.getEventById(eventId))
+        let eventArr = await Promise.all(eventPromises)
+        await client.quit()
+        return res.status(200).send(eventArr);
+      } else {
+        await client.quit()
+        return res.send([]).status(200);
+      }
+    }
+  } catch(e: any) {
+    console.log(e)
+    if(client.isOpen) {
+      await client.quit()
+    }
+    return res.status(e.status).send(e.message);
+  }
+});
+
 router.get("/:eventId", async (req: express.Request, res: express.Response) => {
   try {
     let id: string = xss(req.params.eventId);
@@ -207,6 +235,42 @@ router.get("/:eventId", async (req: express.Request, res: express.Response) => {
   }
 });
 
+router.get("/:eventId/cache", checkJwt, async (req: JWTRequest, res: express.Response) => {
+  try {
+    let id: string = xss(req.params.eventId);
+    let { auth } = req
+    console.log("Test")
+    if (auth && auth.sub) {
+      if (!ObjectId.isValid(req.params.eventId)) {
+        let err: ErrorWithStatus = {
+          message: "Bad Parameters, Invalid event ID",
+          status: 400,
+        };
+        return res.status(err.status).send(err.message);
+      }
+      let getEventDetails = await events.getEventById(id);
+      await client.connect()
+      let eventExists = await client.zScore(auth.sub, id)
+      console.log(eventExists)
+      if (eventExists) {
+        await client.zIncrBy(auth.sub, 1, id)
+      } else {
+        await client.zAdd(auth.sub, {score: 1, value: id})
+        await client.sAdd(id, auth.sub)
+      }
+      await client.quit()
+      return res.status(200).send(getEventDetails);
+    }
+  } catch (e: any) {
+    console.log(e)
+    if (client.isOpen) {
+      await client.quit()
+    }
+    return res.status(e.status).send(e.message);
+  }
+});
+
+
 router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {
     const { auth } = req;
@@ -221,6 +285,15 @@ router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respon
     if (auth && auth.sub) {
       let deletedEvent = await events.deleteEvent(id, auth.sub);
       if (deletedEvent.deleted) {
+        await client.connect();
+        let authKeys = await client.sMembers(id)
+        if(authKeys) {
+          authKeys.forEach(async (key) => {
+            await client.zRem(key, id)
+          })
+        }
+        await Promise.all(authKeys)
+        await client.quit()
         let authId = auth.sub.split("|")[1]
         let updatedUser = await users.removeHostedEvents(authId, id);
         if (updatedUser) {
@@ -231,6 +304,9 @@ router.delete("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respon
       }
     }
   } catch (e: any) {
+    if (client.isOpen) {
+      await client.quit()
+    }
     return res.status(e.status).send(e.message);
   }
 });
@@ -312,6 +388,8 @@ router.patch("/:eventId", checkJwt, async (req: JWTRequest, res: express.Respons
     return res.status(e.status).send(e.message);
   }
 });
+
+router.post("/stripe_webhook")
 
 router.patch("/:eventId/registerEvent", checkJwt, async (req: JWTRequest, res: express.Response) => {
   try {

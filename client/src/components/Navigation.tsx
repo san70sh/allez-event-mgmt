@@ -11,6 +11,7 @@ import { ActionType, UserValues as Values } from "../@types/global";
 const initVal: Values = {
 	firstName: "",
 	lastName: "",
+	profileImg: "",
 	gender: "",
 	phone: "",
 	address: {
@@ -27,6 +28,7 @@ const events = () => {
 	const { loginWithRedirect, logout, user, isAuthenticated, getAccessTokenSilently } = useAuth0();
 	const [openProfileForm, setOpenProfileForm] = useState<boolean>(false);
 	const [isProfilePresent, setIsProfilePresent] = useState<boolean>(true);
+	const [profileImgURL, setProfileImgURL] = useState<string>("");
 	let navigate = useNavigate();
 	const homeRoute = () => {
 		navigate("/");
@@ -39,7 +41,7 @@ const events = () => {
 					audience: "localhost:5173/api",
 					scope: "read:current_user",
 				});
-				let user = await axios
+				let validated_user = await axios
 					.get("http://localhost:3000/users", {
 						headers: {
 							Authorization: `Bearer ${token}`,
@@ -48,11 +50,14 @@ const events = () => {
 					.catch((err: Error | AxiosError) => {
 						console.log(err);
 					});
-				if (!user) {
+				if (!validated_user) {
 					setIsProfilePresent(false);
 					setOpenProfileForm(true);
 				} else {
 					setIsProfilePresent(true);
+					if(validated_user.data && validated_user.data.profileImg) {
+						setProfileImgURL(`https://d2bgr0kljb65n3.cloudfront.net/${validated_user.data.profileImg}`)
+					}
 				}
 			}
 		}
@@ -62,6 +67,9 @@ const events = () => {
 	useEffect(() => {
 		if (isAuthenticated && !isProfilePresent) {
 			setOpenProfileForm(true);
+		}
+		if(user) {
+			setProfileImgURL(user?.picture!)
 		}
 	}, [isAuthenticated, isProfilePresent]);
 
@@ -96,7 +104,6 @@ const events = () => {
 
 	const loginFunc = async () => {
 		try {
-			console.log("LoginAuth")
 			loginWithRedirect({scope: "read:current_user", appState: {returnTo: window.location.pathname}});
 		} catch (error) {
 			console.log(error);
@@ -118,7 +125,6 @@ const events = () => {
 			setOpenProfileForm(true);
 		} else {
 			try {
-				console.log("LoginAuth")
 				loginWithRedirect({scope: "read:current_user", appState: {returnTo: window.location.pathname}});
 			} catch (error) {
 				console.log(error);
@@ -133,7 +139,7 @@ const events = () => {
 
 	return (
 		<div>
-			<div className="grid grid-cols-3 bg-gradient-to-b from-orange-300 to-transparent xl:h-48 sm:h-32 place-content-between">
+			<div className="grid grid-cols-10 bg-gradient-to-b from-orange-300 to-transparent xl:h-48 sm:h-32 place-content-between">
 				<div className="col-start-1 m-7">
 					<label htmlFor="homeButton" hidden>
 						Home
@@ -142,16 +148,16 @@ const events = () => {
 						<img src={logo} className="object-scale-down h-12" onClick={homeRoute} alt="Home" />
 					</button>
 				</div>
-				<div className="col-end-5">
-					<button className="w-32 my-12 mx-3 p-3 bg-orange-700 hover:bg-orange-600 duration-200 shadow-orange-300 shadow-md rounded-md text-white" onClick={hostEvent}>
+				<div className="col-start-9">
+					<button className="w-32 my-12 mx-auto p-3 bg-orange-700 hover:bg-orange-600 duration-200 shadow-orange-300 shadow-md rounded-md text-white" onClick={hostEvent}>
 						Host an Event
 					</button>
 				</div>
-				<div className="col-end-6">
+				<div className="col-start-10">
 					{isAuthenticated && user ? (
-						<ProfileDropDown header={{ user: user }} items={itemsList} />
+						<ProfileDropDown header={{ user: user }} items={itemsList} profileImg={profileImgURL} />
 					) : (
-						<button className="bg-orange-400 text-orange-50 rounded-md p-3 font-medium mx-7 my-12" onClick={loginFunc}>
+						<button className="bg-orange-400 text-orange-50 text-sm rounded-md p-4 font-medium mx-5 mt-11" onClick={loginFunc}>
 							Login/Sign Up
 						</button>
 					)}
